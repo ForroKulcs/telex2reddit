@@ -1,0 +1,51 @@
+{
+	"version": 1,
+	"formatters": {
+		"simple": {
+			"format": "{message}",
+			"datefmt": "%H:%M:%S",
+			"style": "{"
+		},
+		"complex": {
+			"format": "{asctime}[{levelname}]: {message}",
+			"datefmt": "%H:%M:%S",
+			"style": "{"
+		}
+	},
+	"handlers": {
+		"console": {
+			"class": "logging.StreamHandler",
+			"level": "NOTSET",
+			"formatter": "simple"
+		},
+		"file_info": {
+			"backupCount": 30,
+			"class": "logging.handlers.TimedRotatingFileHandler",
+			"encoding": "utf-8",
+			"filename": "log\\info\\info.txt",
+			"formatter": "complex",
+			"level": "INFO",
+			"when": "midnight"
+		},
+		"file_error": {
+			"backupCount": 52,
+			"class": "logging.handlers.TimedRotatingFileHandler",
+			"encoding": "utf-8",
+			"filename": "log\\error\\error.txt",
+			"formatter": "complex",
+			"level": "ERROR",
+			"when": "W0"
+		}
+	},
+	"loggers": {
+		"__main__": {
+			"handlers": [
+				"console",
+				"file_info",
+				"file_error"
+			],
+			"level": "DEBUG",
+			"propagate": true
+		}
+	}
+}
