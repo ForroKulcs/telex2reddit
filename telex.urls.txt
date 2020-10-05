@@ -41,12 +41,15 @@ belfold/2020/10/05/cikk-cime-39
 belfold/2020/10/05/cikk-cime-41
 belfold/2020/10/05/csak-fellebbezes-utan-adtak-meg-a-csaladi-potlekot-egy-meleg-parnak
 belfold/2020/10/05/froccsterasz-kigyulladt-langolt-budapest
+belfold/2020/10/05/helsinki-bizottsag-jogellenesen-jart-el-a-rendorseg-a-meseorszag-matinen
 belfold/2020/10/05/kelet-magyarorszag-eros-szel-idojaras
 belfold/2020/10/05/m-richard
 belfold/2020/10/05/meg-mindig-tart-a-belvarosi-ingatlantrukkozes
 belfold/2020/10/05/nem-a-maszkbirsagbol-fog-meggazdagodni-a-bkk
 belfold/2020/10/05/orban-viktor-tippmix-fogadas-gvh
+belfold/2020/10/05/polgarmester-valasztas-fidesz-levelek
 belfold/2020/10/05/politikatorteneti-intezet
+belfold/2020/10/05/szfe-sajtotajekoztato-ultimatum-blokad
 belfold/2020/10/05/tarlos-istvan-idohuzas-es-latszatpolitizalas-folyik-a-fovarosban
 belfold/2020/10/05/varga-zsolt-andras-ader-janos-kuria-elnoke
 eszkombajn/2020/09/28/a-kresz-tabla-amit-az-olimpianak-koszonhetunk
@@ -58,6 +61,7 @@ gazdasag/2020/10/02/cikk-cime-28
 gazdasag/2020/10/02/cikk-cime-29
 gazdasag/2020/10/04/anglia-amerika-cineworld-regal-mozihalozat-bezaras
 gazdasag/2020/10/05/adocsalas-del-alfold-husipari-ceg-bunszervezet-6-milliard-110-vadlott
+gazdasag/2020/10/05/felcsut-kisvasut-veszteseg
 gazdasag/2020/10/05/magyar-nemzeti-bank-ott-one-bennfentes-kereskedelem-lelegeztetogep
 gazdasag/2020/10/05/manner-puszedli-aldi-visszahivas-penesznebih
 interju/2020/09/28/furjes-interju
@@ -108,7 +112,9 @@ kulfold/2020/10/04/minszk-tuntetok-vizagyu-belarusz
 kulfold/2020/10/04/trump-koronavirus-varatlan-latogatas
 kulfold/2020/10/05/a-nagy-torok-szaudi-osszeveszes
 kulfold/2020/10/05/az-uj-zelandi-utlevellel-lehet-a-legtobb-helyre-beutazni-vizummentesen
+kulfold/2020/10/05/bizottsagot-hozott-letre-a-papa-a-vatikan-bizalmas-penzugyeinek-ellenorzesere
 kulfold/2020/10/05/ep-katarina-barley-orban-korrupcio-spiegel-interju
+kulfold/2020/10/05/jeff-bezos-tuntetes-amazon-munkas
 kulfold/2020/10/05/kalifornia-erdotuzek-rekord-egyesult-allamok
 kulfold/2020/10/05/oroszorszag-ujsagiro-ongyilkos-vizsgalat-eu
 kulfold/2020/10/05/trump-feher-haz-fotok-video
@@ -144,8 +150,10 @@ sport/2020/10/04/nb-i-fradi-felcsut-2-1-zte-honved-2-4
 sport/2020/10/04/premier-league-manchester-united-tottenham-kiutes
 sport/2020/10/04/salzburg-szoboszlai-dominik-golpassz
 sport/2020/10/04/ultrabalaton-eredmenyek-2020-bodis-tamas-maraz-zsuzsanna-vaszil-gyorgy-never-give-up-respect-muay-thai
+sport/2020/10/05/cikk-cime-40
 sport/2020/10/05/jimmy-butler-nba-donto-kosarlabda-miami-heat-los-angeles-lakers
 sport/2020/10/05/memphis-depay-igazolas-barcelona
+sport/2020/10/05/szalai-adam-mainz-edzes
 szorakozas/2020/09/28/24-ev-utan-kerult-elo-egy-elveszettnek-hitt-orias-gyomolcsgalamb
 szorakozas/2020/10/02/fogyaszto-tablettak-es-mekis-kave-miatt-kerult-korhazba-6ix9ine
 szorakozas/2020/10/03/a-farkas-gyermeke-raised-by-wolves-kritika-sorozat-hbo-ridley-scott

@@ -121,11 +121,16 @@ def connect_reddit(name: str) -> praw.Reddit:
     assert username == name
     return reddit
 
-def download_content(url: str, useragent: str) -> str:
+def download_content(url: str, useragent: str, telex_urls_skip: set = None) -> str:
     request = urllib.request.Request(url)
     request.add_header('User-Agent', useragent)
     response = urllib.request.urlopen(request, context = ssl.SSLContext())
     data = response.read()
+    response_url = response.url
+    if response_url != url:
+        log.warning(f'URL changed from {url} to {response_url}')
+        if telex_urls_skip:
+            telex_urls_skip.add(url)
     if b'\x00' in data:
         raise Exception('Content is not text: ' + url)
     charset = response.headers.get_content_charset()
@@ -134,15 +139,14 @@ def download_content(url: str, useragent: str) -> str:
 def datetime2iso8601(value: datetime) -> str:
     return value.isoformat(timespec = 'minutes' if value.second == 0 else 'seconds')
 
-def read_article(url_path: str, telex_json: dict, telex_urls: set):
+def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_skip: set):
     url = 'https://telex.hu/' + url_path
     log.info(f'read_article: {url}')
     telex_config = get_config()['telex']
-    useragent = telex_config.get('useragent')
+    content = ''
     use_article_cache = telex_config.getboolean('use_article_cache')
     if use_article_cache:
         telex_path = Path('log').joinpath('telex.hu')
-        content = ''
         telex_path.joinpath(url_path).with_suffix('.html').unlink(missing_ok = True)
         article_path = telex_path.joinpath(url_path).with_suffix('.gz')
         if article_path.exists():
@@ -150,13 +154,13 @@ def read_article(url_path: str, telex_json: dict, telex_urls: set):
             if datetime.utcnow().timestamp() < article_path.stat().st_mtime + article_cache_valid_time:
                 with gzip.open(article_path, 'rt', encoding = 'utf-8') as f:
                     content = f.read()
-        if content == '':
-            content = download_content(url, useragent)
-            article_path.parent.mkdir(exist_ok = True, parents = True)
-            with gzip.open(article_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
-                f.write(content)
-    else:
-        content = download_content(url, useragent)
+    if content == '':
+        content = download_content(url, telex_config.get('useragent'), telex_urls_skip)
+    if use_article_cache:
+        # noinspection PyUnboundLocalVariable
+        article_path.parent.mkdir(exist_ok = True, parents = True)
+        with gzip.open(article_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
+            f.write(content)
     html_parser = TelexHTMLParser()
     html_parser.feed(content)
     article_date = html_parser.article_date
@@ -253,18 +257,18 @@ def main():
                         category = url[0:url.index('/')]
                         if category not in config['categories']:
                             log.warning(f'Unexpected category: {url}')
-                    if url in telex_urls_skip:
+                    if 'https://telex.hu/' + url in telex_urls_skip:
                         continue
                     time.sleep(1)
-                    read_article(url, telex_json, telex_urls)
+                    read_article(url, telex_json, telex_urls, telex_urls_skip)
                 oldest_url = None
                 remaining_articles = 0
                 for k, v in telex_json.items():
+                    if 'https://telex.hu/' + k in telex_urls_skip:
+                        continue
                     if 'reddit_date' in v:
                         continue
                     if 'article_date' not in v:
-                        continue
-                    if k in telex_urls_skip:
                         continue
                     remaining_articles += 1
                     if (oldest_url is None) or (telex_json[k]['article_date'] < telex_json[oldest_url]['article_date']):
@@ -298,6 +302,11 @@ def main():
                 telex_urls = list(telex_urls)
                 telex_urls.sort()
                 telex_urls_path.write_text('\n'.join(telex_urls), encoding = 'utf-8')
+                if '' in telex_urls_skip:
+                    telex_urls_skip.remove('')
+                telex_urls_skip = list(telex_urls_skip)
+                telex_urls_skip.sort()
+                telex_urls_skip_path.write_text('\n'.join(telex_urls_skip), encoding = 'utf-8')
                 if telex_json_path.exists():
                     telex_json_path.replace(telex_json_path.with_suffix('.bak.gz'))
                 telex_json_text = json.dumps(telex_json, ensure_ascii = False, indent = '\t', sort_keys = True)
@@ -307,7 +316,7 @@ def main():
             log.exception('Exception!')
 
         check_interval = get_config()['telex'].getint('check_interval')
-        log.debug(f'time.sleep({check_interval}) [remaining articles: {remaining_articles} of {len(telex_urls)}]')
+        log.debug(f'time.sleep({check_interval}) [remaining articles: {remaining_articles} of {len(telex_urls)} (skipping {len(telex_urls_skip)})]')
         time.sleep(check_interval)
 
 if __name__ == '__main__':
