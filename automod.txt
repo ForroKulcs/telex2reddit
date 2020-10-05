@@ -1,0 +1,70 @@
+---
+    url: ["telex.hu/belfold/"]
+    action: approve
+    set_flair:
+        template_id: 863b9960-05bb-11eb-9923-0ed8d5403d73
+---
+    url: ["telex.hu/eszkombajn/"]
+    action: approve
+    set_flair:
+        template_id: ee6d4506-05bb-11eb-b879-0e2048894249
+---
+    url: ["telex.hu/gazdasag/"]
+    action: approve
+    set_flair:
+        template_id: b68e5ba0-065d-11eb-ab1d-0ed39bc79b85
+---
+    url: ["telex.hu/interju/"]
+    action: approve
+    set_flair:
+        template_id: f6d16df8-05bb-11eb-82de-0e6a22abf3b5
+---
+    url: ["telex.hu/koronavirus/"]
+    action: approve
+    set_flair:
+        template_id: aca62c78-05bb-11eb-83f3-0e7b9b5be6c1
+---
+    url: ["telex.hu/kult/"]
+    action: approve
+    set_flair:
+        template_id: cdc457ae-05bb-11eb-9419-0ed01453be0b
+---
+    url: ["telex.hu/kulfold/"]
+    action: approve
+    set_flair:
+        template_id: 903056d6-05bb-11eb-a3be-0e023d2dc1bd
+---
+    url: ["telex.hu/napirajz/"]
+    action: approve
+    set_flair:
+        template_id: 00ff0ac4-05bc-11eb-ac53-0ee914d35831
+---
+    url: ["telex.hu/sport/"]
+    action: approve
+    set_flair:
+        template_id: 989abd02-05bb-11eb-a09c-0e70c3d78741
+---
+    url: ["telex.hu/szorakozas/"]
+    action: approve
+    set_flair:
+        template_id: a1b33888-05bb-11eb-9ac7-0e18c3ddf875
+---
+    url: ["telex.hu/tech/"]
+    action: approve
+    set_flair:
+        template_id: d5c0b0ce-05bb-11eb-93c5-0e3be618bcb3
+---
+    url: ["telex.hu/tudomany/"]
+    action: approve
+    set_flair:
+        template_id: 0727a122-05bc-11eb-bee2-0eca59df6af1
+---
+    url: ["telex.hu/velemeny/"]
+    action: approve
+    set_flair:
+        template_id: 79db8db8-0662-11eb-85a2-0e63ecb56f57
+---
+    url: ["telex.hu/video/"]
+    action: approve
+    set_flair:
+        template_id: e393d6a4-05bb-11eb-ae41-0ef7460881f7
