@@ -7,9 +7,11 @@ import json
 import logging.config
 from pathlib import Path
 import praw
+import praw.exceptions
 import re
 import ssl
 import time
+import urllib.error
 import urllib.request
 
 log = logging.Logger
@@ -51,6 +53,9 @@ class TelexHTMLParser(html.parser.HTMLParser):
                     continue
                 if attr[0].lower() != 'class':
                     continue
+                if attr[1] is None:
+                    log.warning(f'<{tag} {attrs}>')
+                    continue
                 if attr[1] == 'article_date':
                     self._in_article_date = True
                 elif attr[1] == 'article_title':
@@ -62,6 +67,9 @@ class TelexHTMLParser(html.parser.HTMLParser):
                 if len(attr) < 2:
                     continue
                 if attr[0].lower() != 'href':
+                    continue
+                if attr[1] is None:
+                    log.warning(f'<{tag} {attrs}>')
                     continue
                 match = self._a_pattern.fullmatch(attr[1].strip().lower())
                 if match:
@@ -113,8 +121,24 @@ def get_config() -> dict:
     # noinspection PyTypeChecker
     return config
 
-def connect_reddit(name: str) -> praw.Reddit:
-    reddit = praw.Reddit(name, user_agent = name + ' script by u/ForroKulcs')
+# noinspection PyUnresolvedReferences
+def ensure_category(category: str, category_name: str):
+    global config_path
+    # noinspection PyShadowingNames
+    config = get_config()
+    if category not in config['categories']:
+        log.warning(f'New category: {category} ({category_name})')
+        try:
+            config.set('categories', category, category_name)
+            with config_path.open('w', encoding = 'utf-8') as ini:
+                config.write(ini, space_around_delimiters = False)
+        except:
+            log.exception(f'Unable to add new category {category} ({category_name}): {config_path}')
+    if category_name != config['categories'].get(category, ''):
+        log.warning(f'Unexpected category name: {category} (category_name)')
+
+def connect_reddit(name: str, useragent: str) -> praw.Reddit:
+    reddit = praw.Reddit(name, user_agent = useragent)
     redditor = reddit.user.me()
     assert redditor is not None
     username = redditor.name
@@ -124,17 +148,22 @@ def connect_reddit(name: str) -> praw.Reddit:
 def download_content(url: str, useragent: str, telex_urls_skip: set = None) -> str:
     request = urllib.request.Request(url)
     request.add_header('User-Agent', useragent)
-    response = urllib.request.urlopen(request, context = ssl.SSLContext())
-    data = response.read()
-    response_url = response.url
-    if response_url != url:
-        log.warning(f'URL changed from {url} to {response_url}')
-        if telex_urls_skip:
-            telex_urls_skip.add(url)
-    if b'\x00' in data:
-        raise Exception('Content is not text: ' + url)
-    charset = response.headers.get_content_charset()
-    return data.decode(encoding = charset, errors = 'replace')
+    try:
+        response = urllib.request.urlopen(request, context = ssl.SSLContext())
+        data = response.read()
+        response_url = response.url
+        if response_url != url:
+            log.warning(f'URL changed from {url} to {response_url}')
+            if telex_urls_skip:
+                telex_urls_skip.add(url)
+        if b'\x00' in data:
+            raise Exception('Content is not text: ' + url)
+        charset = response.headers.get_content_charset()
+        return data.decode(encoding = charset, errors = 'replace')
+    except urllib.error.HTTPError:
+        log.error(f'Unable to download URL: {url}')
+        time.sleep(get_config()['telex'].getint('check_interval'))
+        raise
 
 def datetime2iso8601(value: datetime) -> str:
     return value.isoformat(timespec = 'minutes' if value.second == 0 else 'seconds')
@@ -155,7 +184,7 @@ def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_sk
                 with gzip.open(article_path, 'rt', encoding = 'utf-8') as f:
                     content = f.read()
     if content == '':
-        content = download_content(url, telex_config.get('useragent'), telex_urls_skip)
+        content = download_content(url, telex_config['useragent'], telex_urls_skip)
     if use_article_cache:
         # noinspection PyUnboundLocalVariable
         article_path.parent.mkdir(exist_ok = True, parents = True)
@@ -198,17 +227,20 @@ def collect_links(content: str, telex_json: dict, telex_urls: set, in_english: b
 
 def submit_link(title: str, url: str, flair_id: str):
     reddit_config = get_config()['reddit']
-    user = reddit_config.get('user')
-    reddit = connect_reddit(user)
-    subreddit = reddit.subreddit(reddit_config.get('subreddit'))
+    username = reddit_config['username']
+    reddit = connect_reddit(username, f'{username} script by {reddit_config["script_author"]}')
+    subreddit = reddit.subreddit(reddit_config['subreddit'])
     subreddit.submit(title, None, url, flair_id)
 
 def main():
     remaining_articles = 0
+    articles_json_path = Path('articles.json.gz')
     telex_urls_path = Path('telex.urls.txt')
     telex_urls_skip_path = Path('telex.urls.skip.txt')
     telex_json_path = Path('telex.json.gz')
     while True:
+        articles_json = {}
+        telex_json = {}
         telex_urls = set()
         telex_urls_skip = set()
         try:
@@ -216,29 +248,62 @@ def main():
                 with telex_urls_path.open('rt', encoding = 'utf-8') as f:
                     for line in f:
                         telex_urls.add(line.strip())
+
             if telex_urls_skip_path.exists():
                 with telex_urls_skip_path.open('rt', encoding = 'utf-8') as f:
                     for line in f:
                         telex_urls_skip.add(line.strip())
+
+            if articles_json_path.exists():
+                with gzip.open(articles_json_path, 'rt', encoding = 'utf-8') as f:
+                    articles_json_text = f.read()
+                json_data = json.loads(articles_json_text)
+                if not isinstance(json_data, list):
+                    raise Exception('not isinstance(json_data, list)')
+                for article in json_data:
+                    article_id = str(article.pop('id', ''))
+                    if article_id == '':
+                        raise Exception(f'Invalid article_id: {article}')
+                    if not article_id.isnumeric():
+                        raise Exception(f'Unexpected article_id: {article_id}')
+                    if article_id in articles_json:
+                        raise Exception(f'Duplicate article_id: {article_id}')
+                    if ('contentType' not in article) or (article['contentType'] != 'article'):
+                        raise Exception(f'Invalid contentType: {article}')
+                    if ('mainSuperTag' not in article) or (not isinstance(article['mainSuperTag'], dict)):
+                        raise Exception(f'Invalid mainSuperTag: {article}')
+                    mainSuperTag = article['mainSuperTag']
+                    if 'slug' not in mainSuperTag:
+                        raise Exception(f'No slug in mainSuperTag: {article}')
+                    category = mainSuperTag['slug']
+                    category_name = mainSuperTag.get('name', '')
+                    ensure_category(category, category_name)
+                    articles_json[int(article_id)] = article
+
             if telex_json_path.exists():
                 with gzip.open(telex_json_path, 'rt', encoding = 'utf-8') as f:
                     telex_json_text = f.read()
-                    telex_json = json.loads(telex_json_text)
-            else:
-                telex_json = {}
+                telex_json = json.loads(telex_json_text)
+
             try:
                 for file in Path('sample').glob('*.html'):
                     log.info(f'read_sample: {file}')
                     content = file.read_text(encoding = 'utf-8')
                     collect_links(content, telex_json, telex_urls)
+
                 # noinspection PyShadowingNames
                 config = get_config()
+                useragent = config['telex']['useragent']
+
+                #download_content(config['telex']['api_url'], useragent)
+
                 for k, v in config['collect_links'].items():
                     if v != '':
                         time.sleep(5)
                         log.info(f'read_{k}: {v}')
-                        content = download_content(v, config['telex'].get('useragent'))
+                        content = download_content(v, useragent)
                         collect_links(content, telex_json, telex_urls, k == 'english')
+
                 new_urls = set()
                 for url in telex_urls:
                     if url not in telex_json:
@@ -278,38 +343,63 @@ def main():
                     log.info(f'submit: {full_url}')
                     article_title = telex_json[oldest_url].get('article_title', '').strip()
                     assert article_title != '', f'No article_title: {oldest_url}'
-                    reddit = connect_reddit(config['reddit']['user'])
+                    reddit = connect_reddit(config['reddit']['username'], config['reddit']['script_author'])
                     reddit.validate_on_submit = True
                     subreddit = reddit.subreddit(config['reddit']['subreddit'])
                     utc_time_str = datetime2iso8601(datetime.utcnow()) + 'Z'
-                    submission = subreddit.submit(
-                        title = article_title,
-                        selftext = None,
-                        url = full_url,
-                        flair_id = None,
-                        flair_text = None,
-                        resubmit = False,
-                        send_replies = False)
+                    submission = None
+                    try:
+                        submission = subreddit.submit(
+                            title = article_title,
+                            selftext = None,
+                            url = full_url,
+                            flair_id = None,
+                            flair_text = None,
+                            resubmit = False,
+                            send_replies = False)
+                    except praw.exceptions.RedditAPIException as e:
+                        for eitem in e.items:
+                            if eitem.error_type != 'ALREADY_SUB':
+                                raise
+                            if eitem.field != 'url':
+                                raise
+                            if eitem.message != 'that link has already been submitted':
+                                raise
+                            log.warning(eitem.error_message)
                     telex_json[oldest_url]['reddit_date'] = utc_time_str
-                    telex_json[oldest_url]['reddit_url'] = submission.permalink
+                    telex_json[oldest_url]['reddit_url'] = '' if submission is None else submission.permalink
                     remaining_articles -= 1
-                    if ('english' in telex_json[oldest_url]) and (telex_json[oldest_url]['english']):
-                        collection = subreddit.collections(config['reddit']['english_collection_id'])
-                        collection.mod.add_post(submission.id)
+                    if submission:
+                        if ('english' in telex_json[oldest_url]) and (telex_json[oldest_url]['english']):
+                            collection = subreddit.collections(config['reddit']['english_collection_id'])
+                            collection.mod.add_post(submission.id)
             finally:
                 if '' in telex_urls:
                     telex_urls.remove('')
                 telex_urls = list(telex_urls)
                 telex_urls.sort()
                 telex_urls_path.write_text('\n'.join(telex_urls), encoding = 'utf-8')
+
                 if '' in telex_urls_skip:
                     telex_urls_skip.remove('')
                 telex_urls_skip = list(telex_urls_skip)
                 telex_urls_skip.sort()
                 telex_urls_skip_path.write_text('\n'.join(telex_urls_skip), encoding = 'utf-8')
+
+                json_data = []
+                for article_id in sorted(articles_json):
+                    article = articles_json[article_id]
+                    article['id'] = int(article_id)
+                    json_data.append(article)
+                articles_json_text = json.dumps(json_data, ensure_ascii = False, indent = '\t', sort_keys = True)
+                if articles_json_path.exists():
+                    articles_json_path.replace(articles_json_path.with_suffix('.bak.gz'))
+                with gzip.open(articles_json_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
+                    f.write(articles_json_text)
+
+                telex_json_text = json.dumps(telex_json, ensure_ascii = False, indent = '\t', sort_keys = True)
                 if telex_json_path.exists():
                     telex_json_path.replace(telex_json_path.with_suffix('.bak.gz'))
-                telex_json_text = json.dumps(telex_json, ensure_ascii = False, indent = '\t', sort_keys = True)
                 with gzip.open(telex_json_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
                     f.write(telex_json_text)
         except:
