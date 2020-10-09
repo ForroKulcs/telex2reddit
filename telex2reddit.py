@@ -1,100 +1,19 @@
 import configparser
 from datetime import datetime
-import dateutil.parser
 import gzip
-import html.parser
 import json
 import logging.config
 from pathlib import Path
 import praw
 import praw.exceptions
-import re
 import ssl
+from telexhtmlparser import TelexHTMLParser
 import time
 import urllib.error
 import urllib.request
 
 log = logging.Logger
 logging.setLoggerClass(log)
-
-class HungarianParserInfo(dateutil.parser.parserinfo):
-    MONTHS = ['január',
-              'február',
-              'március',
-              'április',
-              'május',
-              'június',
-              'július',
-              'augusztus',
-              'szeptember',
-              'október',
-              'november',
-              'december']
-
-class TelexHTMLParser(html.parser.HTMLParser):
-    def __init__(self):
-        html.parser.HTMLParser.__init__(self)
-        self._a_pattern = re.compile(r'(?:(?:https?://)(?:www\.)?telex\.hu)?/+(\w+/+\d+/+\d+/+\d+(?:/+[\w-]+)+)/*', re.IGNORECASE)
-        self._in_article_date = False
-        self._in_article_title = False
-        self.article_date = None
-        self.article_title = None
-        self.links = []
-
-    def error(self, message):
-        raise Exception(message)
-
-    def handle_starttag(self, tag: str, attrs: list):
-        lowtag = tag.lower()
-
-        if lowtag == 'div':
-            for attr in attrs:
-                if len(attr) < 2:
-                    continue
-                if attr[0].lower() != 'class':
-                    continue
-                if attr[1] is None:
-                    log.warning(f'<{tag} {attrs}>')
-                    continue
-                if attr[1] == 'article_date':
-                    self._in_article_date = True
-                elif attr[1] == 'article_title':
-                    self._in_article_title = True
-            return
-
-        if lowtag == 'a':
-            for attr in attrs:
-                if len(attr) < 2:
-                    continue
-                if attr[0].lower() != 'href':
-                    continue
-                if attr[1] is None:
-                    log.warning(f'<{tag} {attrs}>')
-                    continue
-                match = self._a_pattern.fullmatch(attr[1].strip().lower())
-                if match:
-                    self.links.append(match.group(1))
-                return
-
-    def handle_endtag(self, tag):
-        self._in_article_date = False
-        self._in_article_title = False
-
-    def handle_data(self, data: str):
-        if self._in_article_date:
-            self._in_article_date = False
-            assert self.article_date is None
-            try:
-                self.article_date = dateutil.parser.parser(HungarianParserInfo()).parse(data.strip(), fuzzy = True)
-            except:
-                log.exception(f'Exception: self.article_date = dateutil.parser.parser(HungarianParserInfo()).parse("{data.strip()}", fuzzy = True)')
-            return
-
-        if self._in_article_title:
-            self._in_article_title = False
-            assert self.article_title is None
-            self.article_title = data.strip()
-            return
 
 def check_config() -> bool:
     global config
@@ -148,22 +67,17 @@ def connect_reddit(name: str, useragent: str) -> praw.Reddit:
 def download_content(url: str, useragent: str, telex_urls_skip: set = None) -> str:
     request = urllib.request.Request(url)
     request.add_header('User-Agent', useragent)
-    try:
-        response = urllib.request.urlopen(request, context = ssl.SSLContext())
-        data = response.read()
-        response_url = response.url
-        if response_url != url:
-            log.warning(f'URL changed from {url} to {response_url}')
-            if telex_urls_skip:
-                telex_urls_skip.add(url)
-        if b'\x00' in data:
-            raise Exception('Content is not text: ' + url)
-        charset = response.headers.get_content_charset()
-        return data.decode(encoding = charset, errors = 'replace')
-    except urllib.error.HTTPError:
-        log.error(f'Unable to download URL: {url}')
-        time.sleep(get_config()['telex'].getint('check_interval'))
-        raise
+    response = urllib.request.urlopen(request, context = ssl.SSLContext())
+    data = response.read()
+    response_url = response.url
+    if response_url != url:
+        log.warning(f'URL changed from {url} to {response_url}')
+        if telex_urls_skip:
+            telex_urls_skip.add(url)
+    if b'\x00' in data:
+        raise Exception(f'Content is not text: {response_url}')
+    charset = response.headers.get_content_charset()
+    return data.decode(encoding = charset, errors = 'replace')
 
 def datetime2iso8601(value: datetime) -> str:
     return value.isoformat(timespec = 'minutes' if value.second == 0 else 'seconds')
@@ -190,7 +104,7 @@ def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_sk
         article_path.parent.mkdir(exist_ok = True, parents = True)
         with gzip.open(article_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
             f.write(content)
-    html_parser = TelexHTMLParser()
+    html_parser = TelexHTMLParser(log)
     html_parser.feed(content)
     article_date = html_parser.article_date
     assert article_date is not None
@@ -210,7 +124,7 @@ def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_sk
             telex_json[url] = {}
 
 def collect_links(content: str, telex_json: dict, telex_urls: set, in_english: bool = False):
-    html_parser = TelexHTMLParser()
+    html_parser = TelexHTMLParser(log)
     html_parser.feed(content)
     links = html_parser.links
     counter = 0
@@ -402,10 +316,18 @@ def main():
                     telex_json_path.replace(telex_json_path.with_suffix('.bak.gz'))
                 with gzip.open(telex_json_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
                     f.write(telex_json_text)
+        except urllib.error.HTTPError as e:
+            if (e.code == 500) and (e.reason == 'RuntimeError'):
+                log.error(f'Unable to download URL ({e}): {e.url}')
+                time.sleep(10 * 60)
+            else:
+                log.exception('Exception!')
         except:
             log.exception('Exception!')
 
         check_interval = get_config()['telex'].getint('check_interval')
+        if remaining_articles > 0:
+            check_interval /= 2
         log.debug(f'time.sleep({check_interval}) [remaining articles: {remaining_articles} of {len(telex_urls)} (skipping {len(telex_urls_skip)})]')
         time.sleep(check_interval)
 
