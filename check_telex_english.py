@@ -7,6 +7,7 @@ from pathlib import Path
 import praw
 import praw.exceptions
 import ssl
+import telex_file
 from telexhtmlparser import TelexHTMLParser
 import urllib.error
 import urllib.request
@@ -36,12 +37,11 @@ def download_content(url: str, useragent: str) -> str:
     return data.decode(encoding = charset, errors = 'replace')
 
 def main():
+    telex_json_changed = False
     telex_json = {}
     telex_json_path = Path('telex.json.gz')
     if telex_json_path.exists():
-        with gzip.open(telex_json_path, 'rt', encoding = 'utf-8') as f:
-            telex_json_text = f.read()
-        telex_json = json.loads(telex_json_text)
+        telex_json = telex_file.read_gzip_as_json(telex_json_path)
     else:
         log.warning(f'{telex_json_path} not available')
 
@@ -69,6 +69,7 @@ def main():
         if not telex_json[telex_link].get('english', False):
             log.info(f'Add english to {telex_link}')
             telex_json[telex_link]['english'] = True
+            telex_json_changed = True
 
     reddit_config = config['reddit']
     reddit = connect_reddit(reddit_config['username'], reddit_config['script_author'])
@@ -88,11 +89,13 @@ def main():
             log.info(f'Add new english post: {submission.title}[{submission.url}]')
             collection.mod.add_post(submission.id)
 
-    telex_json_text = json.dumps(telex_json, ensure_ascii = False, indent = '\t', sort_keys = True)
-    if telex_json_path.exists():
-        telex_json_path.replace(telex_json_path.with_suffix('.bak.gz'))
-    with gzip.open(telex_json_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
-        f.write(telex_json_text)
+    if telex_json_changed:
+        telex_json_text = json.dumps(telex_json, ensure_ascii = False, indent = '\t', sort_keys = True)
+        if telex_json_path.exists():
+            telex_json_path.replace(telex_json_path.with_suffix('.bak.gz'))
+        telex_file.write_text_to_gzip(telex_json_path, telex_json_text)
+    else:
+        log.info('No change')
 
 if __name__ == '__main__':
     logging_config = json.loads(Path('telex2reddit').with_suffix('.logging.json').read_text())

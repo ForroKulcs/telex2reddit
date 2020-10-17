@@ -320,6 +320,9 @@ def main():
             if (e.code == 500) and (e.reason == 'RuntimeError'):
                 log.error(f'Unable to download URL ({e}): {e.url}')
                 time.sleep(10 * 60)
+            elif (e.code == 503) and (e.reason == 'Service Unavailable'):
+                log.error(f'Unable to download URL ({e}): {e.url}')
+                time.sleep(10 * 60)
             else:
                 log.exception('Exception!')
         except:

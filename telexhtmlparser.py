@@ -76,6 +76,8 @@ class TelexHTMLParser(html.parser.HTMLParser):
             date_text = data.strip()
             if '(' in date_text:
                 date_text = date_text[0:date_text.index('(')].rstrip()
+            if date_text == '':
+                return
             try:
                 self.article_date = dateutil.parser.parser(HungarianParserInfo()).parse(date_text, fuzzy = True)
             except:
