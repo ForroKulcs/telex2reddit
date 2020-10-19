@@ -34,15 +34,13 @@ class TelexHTMLParser(html.parser.HTMLParser):
     def handle_starttag(self, tag: str, attrs: list):
         lowtag = tag.lower()
 
-        if lowtag == 'div':
+        if lowtag in ['div', 'h1']:
             for attr in attrs:
                 if len(attr) < 2:
                     continue
                 if attr[0].lower() != 'class':
                     continue
                 if attr[1] is None:
-                    if self._log:
-                        self._log.warning(f'<{tag} {attrs}>')
                     continue
                 if attr[1] == 'article_date':
                     self._in_article_date = True
@@ -57,8 +55,6 @@ class TelexHTMLParser(html.parser.HTMLParser):
                 if attr[0].lower() != 'href':
                     continue
                 if attr[1] is None:
-                    if self._log:
-                        self._log.warning(f'<{tag} {attrs}>')
                     continue
                 match = self._link_pattern.fullmatch(attr[1].strip().lower())
                 if match:

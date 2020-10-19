@@ -37,7 +37,6 @@ def download_content(url: str, useragent: str) -> str:
     return data.decode(encoding = charset, errors = 'replace')
 
 def main():
-    telex_json_changed = False
     telex_json = {}
     telex_json_path = Path('telex.json.gz')
     if telex_json_path.exists():
@@ -57,9 +56,9 @@ def main():
     content = download_content(url, useragent)
     html_parser = TelexHTMLParser(log)
     html_parser.feed(content)
-    links = html_parser.links
+    links = set(html_parser.links)
     if len(links) <= 0:
-        raise Exception('No english linkss')
+        raise Exception('No english links')
 
     for link in links:
         telex_link = link.strip('/')
@@ -69,7 +68,6 @@ def main():
         if not telex_json[telex_link].get('english', False):
             log.info(f'Add english to {telex_link}')
             telex_json[telex_link]['english'] = True
-            telex_json_changed = True
 
     reddit_config = config['reddit']
     reddit = connect_reddit(reddit_config['username'], reddit_config['script_author'])
@@ -85,16 +83,17 @@ def main():
         while telex_link in links:
             links.remove(telex_link)
     for link in links:
-        for submission in subreddit.search(f'site:telex.hu/{link}'):
-            log.info(f'Add new english post: {submission.title}[{submission.url}]')
-            collection.mod.add_post(submission.id)
+        telex_link = link.strip('/')
+        if telex_link in telex_json:
+            if 'reddit_url' in telex_json[telex_link]:
+                reddit_url = 'https://reddit.com' + telex_json[telex_link]['reddit_url']
+                log.info(f'Add new english post to collection: {reddit_url}')
+                collection.mod.add_post('reddit.com' + reddit_url)
 
-    if telex_json_changed:
-        telex_json_text = json.dumps(telex_json, ensure_ascii = False, indent = '\t', sort_keys = True)
-        if telex_json_path.exists():
-            telex_json_path.replace(telex_json_path.with_suffix('.bak.gz'))
-        telex_file.write_text_to_gzip(telex_json_path, telex_json_text)
-    else:
+    telex_json_text = json.dumps(telex_json, ensure_ascii = False, indent = '\t', sort_keys = True)
+    if telex_json_path.exists():
+        telex_json_path.replace(telex_json_path.with_suffix('.bak.gz'))
+    if not telex_file.write_text_to_gzip(telex_json_path, telex_json_text, True):
         log.info('No change')
 
 if __name__ == '__main__':
