@@ -1,13 +1,12 @@
 import configparser
 from datetime import datetime
-import gzip
 import json
 import logging.config
 from pathlib import Path
 import praw
 import praw.exceptions
 import ssl
-import telex_file
+from telex_file import JsonGzip
 from telexhtmlparser import TelexHTMLParser
 import urllib.error
 import urllib.request
@@ -37,12 +36,8 @@ def download_content(url: str, useragent: str) -> str:
     return data.decode(encoding = charset, errors = 'replace')
 
 def main():
-    telex_json = {}
-    telex_json_path = Path('telex.json.gz')
-    if telex_json_path.exists():
-        telex_json = telex_file.read_gzip_as_json(telex_json_path)
-    else:
-        log.warning(f'{telex_json_path} not available')
+    telex_json = JsonGzip('telex.json.gz', log = log)
+    telex_json.read()
 
     config_path = Path('telex2reddit').with_suffix('.ini')
     config = configparser.ConfigParser(interpolation = None)
@@ -90,11 +85,7 @@ def main():
                 log.info(f'Add new english post to collection: {reddit_url}')
                 collection.mod.add_post('reddit.com' + reddit_url)
 
-    telex_json_text = json.dumps(telex_json, ensure_ascii = False, indent = '\t', sort_keys = True)
-    if telex_json_path.exists():
-        telex_json_path.replace(telex_json_path.with_suffix('.bak.gz'))
-    if not telex_file.write_text_to_gzip(telex_json_path, telex_json_text, True):
-        log.info('No change')
+    telex_json.write(create_backup = True, check_for_changes = True)
 
 if __name__ == '__main__':
     logging_config = json.loads(Path('telex2reddit').with_suffix('.logging.json').read_text())

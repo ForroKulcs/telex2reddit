@@ -23,6 +23,7 @@ class TelexHTMLParser(html.parser.HTMLParser):
         self._link_pattern = re.compile(r'(?:(?:https?://)(?:www\.)?telex\.hu)?/+(\w+/+\d+/+\d+/+\d+(?:/+[\w-]+)+)/*', re.IGNORECASE)
         self._in_article_date = False
         self._in_article_title = False
+        self._in_article_title_bottom = False
         self._log = log
         self.article_date = None
         self.article_title = None
@@ -34,7 +35,19 @@ class TelexHTMLParser(html.parser.HTMLParser):
     def handle_starttag(self, tag: str, attrs: list):
         lowtag = tag.lower()
 
-        if lowtag in ['div', 'h1']:
+        if lowtag == 'h1':
+            for attr in attrs:
+                if len(attr) < 2:
+                    continue
+                if attr[0].lower() != 'class':
+                    continue
+                if attr[1] is None:
+                    continue
+                if attr[1] == 'article_title':
+                    self._in_article_title = True
+            return
+
+        if lowtag == 'div':
             for attr in attrs:
                 if len(attr) < 2:
                     continue
@@ -44,8 +57,8 @@ class TelexHTMLParser(html.parser.HTMLParser):
                     continue
                 if attr[1] == 'article_date':
                     self._in_article_date = True
-                elif attr[1] == 'article_title':
-                    self._in_article_title = True
+                elif attr[1] == 'article_title-bottom':
+                    self._in_article_title_bottom = True
             return
 
         if lowtag == 'a':
@@ -62,11 +75,15 @@ class TelexHTMLParser(html.parser.HTMLParser):
                 return
 
     def handle_endtag(self, tag: str):
-        self._in_article_date = False
-        self._in_article_title = False
+        lowtag = tag.lower()
+        if lowtag == 'h1':
+            self._in_article_title = False
+        elif lowtag == 'div':
+            self._in_article_date = False
+            self._in_article_title_bottom = False
 
     def handle_data(self, data: str):
-        if self._in_article_date:
+        if self._in_article_title_bottom and self._in_article_date:
             self._in_article_date = False
             assert self.article_date is None
             date_text = data.strip()
