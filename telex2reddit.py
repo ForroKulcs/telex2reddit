@@ -2,10 +2,12 @@ import configparser
 from datetime import datetime
 import gzip
 import json
+from jsonfile import JsonGzip
 import logging.config
 from pathlib import Path
 import praw
 import praw.exceptions
+from setfile import SetFile
 import ssl
 from telexhtmlparser import TelexHTMLParser
 import time
@@ -149,24 +151,14 @@ def submit_link(title: str, url: str, flair_id: str):
 def main():
     remaining_articles = 0
     articles_json_path = Path('articles.json.gz')
-    telex_urls_path = Path('telex.urls.txt')
-    telex_urls_skip_path = Path('telex.urls.skip.txt')
-    telex_json_path = Path('telex.json.gz')
+    telex_urls = SetFile('telex.urls.txt', log = log)
+    telex_urls_skip = SetFile('telex.urls.skip.txt', log = log)
+    telex_json = JsonGzip('telex.json.gz', log = log)
     while True:
         articles_json = {}
-        telex_json = {}
-        telex_urls = set()
-        telex_urls_skip = set()
         try:
-            if telex_urls_path.exists():
-                with telex_urls_path.open('rt', encoding = 'utf-8') as f:
-                    for line in f:
-                        telex_urls.add(line.strip())
-
-            if telex_urls_skip_path.exists():
-                with telex_urls_skip_path.open('rt', encoding = 'utf-8') as f:
-                    for line in f:
-                        telex_urls_skip.add(line.strip())
+            telex_urls.read()
+            telex_urls_skip.read()
 
             if articles_json_path.exists():
                 with gzip.open(articles_json_path, 'rt', encoding = 'utf-8') as f:
@@ -194,10 +186,7 @@ def main():
                     ensure_category(category, category_name)
                     articles_json[int(article_id)] = article
 
-            if telex_json_path.exists():
-                with gzip.open(telex_json_path, 'rt', encoding = 'utf-8') as f:
-                    telex_json_text = f.read()
-                telex_json = json.loads(telex_json_text)
+            telex_json.read()
 
             try:
                 for file in Path('sample').glob('*.html'):
@@ -286,19 +275,17 @@ def main():
                     if submission:
                         if ('english' in telex_json[oldest_url]) and (telex_json[oldest_url]['english']):
                             collection = subreddit.collections(config['reddit']['english_collection_id'])
-                            collection.mod.add_post(submission.id)
+                            reddit_url = 'https://reddit.com' + submission.permalink
+                            log.info(f'Add new english post to collection: {reddit_url}')
+                            collection.mod.add_post(reddit_url)
             finally:
                 if '' in telex_urls:
                     telex_urls.remove('')
-                telex_urls = list(telex_urls)
-                telex_urls.sort()
-                telex_urls_path.write_text('\n'.join(telex_urls), encoding = 'utf-8')
+                telex_urls.write(create_backup = True, check_for_changes = True)
 
                 if '' in telex_urls_skip:
                     telex_urls_skip.remove('')
-                telex_urls_skip = list(telex_urls_skip)
-                telex_urls_skip.sort()
-                telex_urls_skip_path.write_text('\n'.join(telex_urls_skip), encoding = 'utf-8')
+                telex_urls_skip.write(create_backup = True, check_for_changes = True)
 
                 json_data = []
                 for article_id in sorted(articles_json):
@@ -311,16 +298,15 @@ def main():
                 with gzip.open(articles_json_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
                     f.write(articles_json_text)
 
-                telex_json_text = json.dumps(telex_json, ensure_ascii = False, indent = '\t', sort_keys = True)
-                if telex_json_path.exists():
-                    telex_json_path.replace(telex_json_path.with_suffix('.bak.gz'))
-                with gzip.open(telex_json_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
-                    f.write(telex_json_text)
+                telex_json.write(create_backup = True, check_for_changes = True)
         except urllib.error.HTTPError as e:
             if (e.code == 500) and (e.reason == 'RuntimeError'):
                 log.error(f'Unable to download URL ({e}): {e.url}')
                 time.sleep(10 * 60)
             elif (e.code == 503) and (e.reason == 'Service Unavailable'):
+                log.error(f'Unable to download URL ({e}): {e.url}')
+                time.sleep(10 * 60)
+            elif (e.code == 408) and (e.reason == 'Request Time-out'):
                 log.error(f'Unable to download URL ({e}): {e.url}')
                 time.sleep(10 * 60)
             else:

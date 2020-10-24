@@ -6,7 +6,7 @@ from pathlib import Path
 import praw
 import praw.exceptions
 import ssl
-from telex_file import JsonGzip
+from jsonfile import JsonGzip
 from telexhtmlparser import TelexHTMLParser
 import urllib.error
 import urllib.request
@@ -83,7 +83,7 @@ def main():
             if 'reddit_url' in telex_json[telex_link]:
                 reddit_url = 'https://reddit.com' + telex_json[telex_link]['reddit_url']
                 log.info(f'Add new english post to collection: {reddit_url}')
-                collection.mod.add_post('reddit.com' + reddit_url)
+                collection.mod.add_post(reddit_url)
 
     telex_json.write(create_backup = True, check_for_changes = True)
 
