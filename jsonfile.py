@@ -3,7 +3,7 @@ import json
 import logging.config
 from pathlib import Path
 
-class JsonReadFile(dict):
+class JsonFile(dict):
     def __init__(self, filename: [Path, str], encoding: str = 'utf-8', log: logging.Logger = None):
         super().__init__()
         if isinstance(filename, Path):
@@ -50,7 +50,6 @@ class JsonReadFile(dict):
                 self.log.exception(f'Unable to read: {self.path}')
         return False
 
-class JsonFile(JsonReadFile):
     def _write(self, text: str):
         with open(self.path, 'wt', encoding = self.encoding) as f:
             f.write(text)

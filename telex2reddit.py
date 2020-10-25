@@ -3,6 +3,7 @@ from datetime import datetime
 import gzip
 import json
 from jsonfile import JsonGzip
+from listasdictjsonfile import ListAsDictJsonGzip
 import logging.config
 from pathlib import Path
 import praw
@@ -141,50 +142,30 @@ def collect_links(content: str, telex_json: dict, telex_urls: set, in_english: b
             else:
                 telex_json[url] = {}
 
-def submit_link(title: str, url: str, flair_id: str):
-    reddit_config = get_config()['reddit']
-    username = reddit_config['username']
-    reddit = connect_reddit(username, f'{username} script by {reddit_config["script_author"]}')
-    subreddit = reddit.subreddit(reddit_config['subreddit'])
-    subreddit.submit(title, None, url, flair_id)
-
 def main():
     remaining_articles = 0
-    articles_json_path = Path('articles.json.gz')
+    articles_json = ListAsDictJsonGzip('articles.json.gz', log = log)
     telex_urls = SetFile('telex.urls.txt', log = log)
     telex_urls_skip = SetFile('telex.urls.skip.txt', log = log)
     telex_json = JsonGzip('telex.json.gz', log = log)
     while True:
-        articles_json = {}
         try:
             telex_urls.read()
             telex_urls_skip.read()
 
-            if articles_json_path.exists():
-                with gzip.open(articles_json_path, 'rt', encoding = 'utf-8') as f:
-                    articles_json_text = f.read()
-                json_data = json.loads(articles_json_text)
-                if not isinstance(json_data, list):
-                    raise Exception('not isinstance(json_data, list)')
-                for article in json_data:
-                    article_id = str(article.pop('id', ''))
-                    if article_id == '':
-                        raise Exception(f'Invalid article_id: {article}')
-                    if not article_id.isnumeric():
-                        raise Exception(f'Unexpected article_id: {article_id}')
-                    if article_id in articles_json:
-                        raise Exception(f'Duplicate article_id: {article_id}')
-                    if ('contentType' not in article) or (article['contentType'] != 'article'):
-                        raise Exception(f'Invalid contentType: {article}')
-                    if ('mainSuperTag' not in article) or (not isinstance(article['mainSuperTag'], dict)):
-                        raise Exception(f'Invalid mainSuperTag: {article}')
-                    mainSuperTag = article['mainSuperTag']
-                    if 'slug' not in mainSuperTag:
-                        raise Exception(f'No slug in mainSuperTag: {article}')
-                    category = mainSuperTag['slug']
-                    category_name = mainSuperTag.get('name', '')
-                    ensure_category(category, category_name)
-                    articles_json[int(article_id)] = article
+            articles_json.read()
+            for k, v in articles_json.items():
+                if ('contentType' not in v) or (v['contentType'] != 'article'):
+                    raise Exception(f'Invalid contentType: {v}')
+                if ('mainSuperTag' not in v) or (not isinstance(v['mainSuperTag'], dict)):
+                    raise Exception(f'Invalid mainSuperTag: {v}')
+                mainSuperTag = v['mainSuperTag']
+                if 'slug' not in mainSuperTag:
+                    raise Exception(f'No slug in mainSuperTag: {v}')
+                category = mainSuperTag['slug']
+                category_name = mainSuperTag.get('name', '')
+                ensure_category(category, category_name)
+                articles_json[int(k)] = v
 
             telex_json.read()
 
@@ -287,17 +268,7 @@ def main():
                     telex_urls_skip.remove('')
                 telex_urls_skip.write(create_backup = True, check_for_changes = True)
 
-                json_data = []
-                for article_id in sorted(articles_json):
-                    article = articles_json[article_id]
-                    article['id'] = int(article_id)
-                    json_data.append(article)
-                articles_json_text = json.dumps(json_data, ensure_ascii = False, indent = '\t', sort_keys = True)
-                if articles_json_path.exists():
-                    articles_json_path.replace(articles_json_path.with_suffix('.bak.gz'))
-                with gzip.open(articles_json_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
-                    f.write(articles_json_text)
-
+                articles_json.write(create_backup = True, check_for_changes = True)
                 telex_json.write(create_backup = True, check_for_changes = True)
         except urllib.error.HTTPError as e:
             if (e.code == 500) and (e.reason == 'RuntimeError'):
