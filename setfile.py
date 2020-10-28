@@ -27,10 +27,13 @@ class SetReadFile(set):
     def __str__(self):
         return '\n'.join(self.as_sorted_list())
 
-    def _read(self, filehandle):
+    def _read(self, filehandle, keepends: bool = False):
         self.clear()
         for line in filehandle:
-            self.add(line.rstrip('\n'))
+            if keepends:
+                self.add(line)
+            else:
+                self.add(line.rstrip('\n\r'))
 
     def as_sorted_list(self) -> list[str]:
         strings = list(self)
@@ -40,6 +43,9 @@ class SetReadFile(set):
     def read(self):
         with open(self.path, 'rt', encoding = self.encoding) as f:
             self._read(f)
+
+    def read_text(self, text: str):
+        self._read(text.splitlines(), keepends = True)
 
     def try_read(self) -> bool:
         try:
@@ -85,7 +91,7 @@ class SetFile(SetReadFile):
                     self.path.replace(backup_path)
                 except:
                     if self.log:
-                        self.log.exception(f'Unable to replace: {backup_path}')
+                        self.log.exception(f'Unable to replace backup: {backup_path}')
         self._write(text)
 
     def _write(self, text: str):

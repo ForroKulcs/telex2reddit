@@ -3,7 +3,16 @@ import json
 import logging.config
 from pathlib import Path
 
-class JsonFile(dict):
+class JsonText(dict):
+    def __str__(self):
+        return json.dumps(self, ensure_ascii = False, indent = '\t', sort_keys = True)
+
+    def read_text(self, text: str):
+        data = json.loads(text)
+        self.clear()
+        self.update(data)
+
+class JsonFile(JsonText):
     def __init__(self, filename: [Path, str], encoding: str = 'utf-8', log: logging.Logger = None):
         super().__init__()
         if isinstance(filename, Path):
@@ -25,17 +34,12 @@ class JsonFile(dict):
     def path(self) -> Path:
         return self._path
 
-    def __str__(self):
-        return json.dumps(self, ensure_ascii = False, indent = '\t', sort_keys = True)
-
     def _read(self):
         with open(self.path, 'rt', encoding = self.encoding) as f:
             return f.read()
 
     def read(self):
-        text = self._read()
-        self.clear()
-        self.update(json.loads(text))
+        self.read_text(self._read())
 
     def try_read(self) -> bool:
         try:
@@ -83,7 +87,7 @@ class JsonFile(dict):
                     self.path.replace(backup_path)
                 except:
                     if self.log:
-                        self.log.exception(f'Unable to replace: {backup_path}')
+                        self.log.exception(f'Unable to replace backup: {backup_path}')
         self._write(text)
 
 class JsonGzip(JsonFile):

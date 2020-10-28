@@ -8,6 +8,7 @@ import logging.config
 from pathlib import Path
 import praw
 import praw.exceptions
+import re
 from setfile import SetFile
 import ssl
 from telexhtmlparser import TelexHTMLParser
@@ -37,7 +38,7 @@ def check_config() -> bool:
         log.exception('Exception in check_config()')
         return False
 
-def get_config() -> dict:
+def get_config() -> configparser.ConfigParser:
     global config
     check_config()
     # noinspection PyTypeChecker
@@ -55,17 +56,9 @@ def ensure_category(category: str, category_name: str):
             with config_path.open('w', encoding = 'utf-8') as ini:
                 config.write(ini, space_around_delimiters = False)
         except:
-            log.exception(f'Unable to add new category {category} ({category_name}): {config_path}')
+            log.exception(f'Unable to add new category: {category} ({category_name}): {config_path}')
     if category_name != config['categories'].get(category, ''):
-        log.warning(f'Unexpected category name: {category} (category_name)')
-
-def connect_reddit(name: str, useragent: str) -> praw.Reddit:
-    reddit = praw.Reddit(name, user_agent = useragent)
-    redditor = reddit.user.me()
-    assert redditor is not None
-    username = redditor.name
-    assert username == name
-    return reddit
+        log.warning(f'Unexpected category name: {category} ({category_name})')
 
 def download_content(url: str, useragent: str, telex_urls_skip: set = None) -> str:
     request = urllib.request.Request(url)
@@ -142,7 +135,82 @@ def collect_links(content: str, telex_json: dict, telex_urls: set, in_english: b
             else:
                 telex_json[url] = {}
 
+def connect_reddit(name: str, useragent: str) -> praw.Reddit:
+    reddit = praw.Reddit(name, user_agent = useragent)
+    redditor = reddit.user.me()
+    assert redditor is not None
+    username = redditor.name
+    assert username == name
+    return reddit
+
+# noinspection PyUnresolvedReferences
+def get_subreddit() -> praw.models.Subreddit:
+    # noinspection PyShadowingNames
+    config = get_config()
+    reddit = connect_reddit(config['reddit']['username'], 'Script by u/' + config['reddit']['script_author'])
+    reddit.validate_on_submit = True
+    return reddit.subreddit(config['reddit']['subreddit'])
+
+def check_categories():
+    # noinspection PyShadowingNames
+    config = get_config()
+    categories = config['categories']
+    flair_classes = {}
+    subreddit = get_subreddit()
+    for flair in subreddit.flair.link_templates:
+        if flair['type'] != 'text':
+            continue
+        if not flair['mod_only']:
+            continue
+        flair_class = flair['css_class']
+        flair_text = flair['text']
+        if flair_class in flair_classes:
+            raise Exception(f'Duplicate flair: {flair_class}')
+        if flair_class not in categories:
+            raise Exception(f'Flair missing from config: {flair_class}')
+        if flair_text != categories[flair_class].upper():
+            raise Exception(f'Unexpected flair text ({flair_class}): {flair_text} != {categories[flair_class]}')
+        flair_classes[flair_class] = flair['id']
+    for flair_class in categories:
+        if flair_class not in flair_classes:
+            raise Exception(f'Unexpected flair in config: {flair_class}')
+    automoderator = subreddit.wiki['config/automoderator']
+    for revision in automoderator.revisions():
+        revision_author = revision['author']
+        if revision_author != config['reddit']['script_author']:
+            raise Exception(f'Unexpected automoderator author: {revision_author}')
+    pattern = re.compile(r'---\s+url: \["telex.hu/(\w+)/"]\s+action:\s*approve\s+set_flair:\s+template_id:\s*([\da-f-]+)\s*')
+    last_pos = 0
+    automod_flairs = {}
+    automoderator_content_md = automoderator.content_md
+    for match in pattern.finditer(automoderator_content_md):
+        if last_pos != match.start():
+            raise Exception(f'Unexpected position of match: {match}')
+        last_pos = match.end()
+        flair_class = match.group(1)
+        if flair_class in automod_flairs:
+            raise Exception(f'Automoderator duplicate flair: {flair_class}')
+        if flair_class not in flair_classes:
+            raise Exception(f'Automoderator flair missing from config: {flair_class}')
+        template_id = match.group(2)
+        for k, v in automod_flairs.items():
+            if v == template_id:
+                raise Exception(f'Automoderator flair ({k}) template_id redundant: {template_id}')
+        automod_flairs[flair_class] = template_id
+        if flair_classes[flair_class] != template_id:
+            raise Exception(f'Automoderator flair ({flair_class}) template_id mismatch: {template_id}')
+    if last_pos != len(automoderator_content_md):
+        raise Exception(f'Unexpected content at the end of automoderator')
+    for flair_class in automod_flairs:
+        if flair_class not in flair_classes:
+            raise Exception(f'Automoderator flair unexpected: {flair_class}')
+    automod_path = Path('automod.txt')
+    if automod_path.read_text(encoding = 'utf-8') != automoderator_content_md:
+        automod_path.write_text(automoderator_content_md, encoding = 'utf-8')
+
 def main():
+    check_categories()
+
     remaining_articles = 0
     articles_json = ListAsDictJsonGzip('articles.json.gz', log = log)
     telex_urls = SetFile('telex.urls.txt', log = log)
@@ -227,9 +295,7 @@ def main():
                     log.info(f'submit: {full_url}')
                     article_title = telex_json[oldest_url].get('article_title', '').strip()
                     assert article_title != '', f'No article_title: {oldest_url}'
-                    reddit = connect_reddit(config['reddit']['username'], config['reddit']['script_author'])
-                    reddit.validate_on_submit = True
-                    subreddit = reddit.subreddit(config['reddit']['subreddit'])
+                    subreddit = get_subreddit()
                     utc_time_str = datetime2iso8601(datetime.utcnow()) + 'Z'
                     submission = None
                     try:
@@ -271,13 +337,12 @@ def main():
                 articles_json.write(create_backup = True, check_for_changes = True)
                 telex_json.write(create_backup = True, check_for_changes = True)
         except urllib.error.HTTPError as e:
-            if (e.code == 500) and (e.reason == 'RuntimeError'):
-                log.error(f'Unable to download URL ({e}): {e.url}')
-                time.sleep(10 * 60)
-            elif (e.code == 503) and (e.reason == 'Service Unavailable'):
-                log.error(f'Unable to download URL ({e}): {e.url}')
-                time.sleep(10 * 60)
-            elif (e.code == 408) and (e.reason == 'Request Time-out'):
+            if (
+                    (e.code == 500) and (e.reason == 'RuntimeError')) or (
+                    (e.code == 503) and (e.reason == 'Service Unavailable')) or (
+                    (e.code == 408) and (e.reason == 'Request Time-out')) or (
+                    (e.code == 10060) and (e.reason == 'WinError')
+            ):
                 log.error(f'Unable to download URL ({e}): {e.url}')
                 time.sleep(10 * 60)
             else:
