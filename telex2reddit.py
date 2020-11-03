@@ -3,7 +3,7 @@ from datetime import datetime
 import gzip
 import json
 from jsonfile import JsonGzip
-from listasdictjsonfile import ListAsDictJsonGzip
+from listasdictjsonfile import ListAsDictJsonGzip, ListAsDictJsonText
 import logging.config
 from pathlib import Path
 import praw
@@ -60,7 +60,7 @@ def ensure_category(category: str, category_name: str):
     if category_name != config['categories'].get(category, ''):
         log.warning(f'Unexpected category name: {category} ({category_name})')
 
-def download_content(url: str, useragent: str, telex_urls_skip: set = None) -> str:
+def download_content(url: str, useragent: str, telex_urls_skip: set = None, default_encoding: str = 'utf-8') -> str:
     request = urllib.request.Request(url)
     request.add_header('User-Agent', useragent)
     response = urllib.request.urlopen(request, context = ssl.SSLContext())
@@ -73,6 +73,8 @@ def download_content(url: str, useragent: str, telex_urls_skip: set = None) -> s
     if b'\x00' in data:
         raise Exception(f'Content is not text: {response_url}')
     charset = response.headers.get_content_charset()
+    if charset is None:
+        charset = default_encoding
     return data.decode(encoding = charset, errors = 'replace')
 
 def datetime2iso8601(value: datetime) -> str:
@@ -150,6 +152,37 @@ def get_subreddit() -> praw.models.Subreddit:
     reddit = connect_reddit(config['reddit']['username'], 'Script by u/' + config['reddit']['script_author'])
     reddit.validate_on_submit = True
     return reddit.subreddit(config['reddit']['subreddit'])
+
+def update_article(path: str, src: dict, dest: dict):
+    for k, v in src.items():
+        if k in dest:
+            if str(dest[k]) != str(v):
+                if isinstance(dest[k], dict) and isinstance(v, dict):
+                    update_article(f'{path}/{k}', v, dest[k])
+                    continue
+                if isinstance(dest[k], list) and isinstance(v, list):
+                    if len(dest[k]) <= 0:
+                        log.info(f'{path}. extended {k}: {v}')
+                        dest[k].extend(v)
+                        continue
+                    if len(v) <= 0:
+                        log.info(f'{path}. cleared {k}: {v}')
+                        dest[k].clear()
+                        continue
+                    if len(dest[k]) == len(v):
+                        for i in range(len(v)):
+                            update_article(f'{path}/{k}[{i}]', v[i], dest[k][i])
+                        continue
+                    raise Exception('Unexpected lists')
+                log.info(f'{path}. changed {k}: from {dest[k]} to {v}')
+                dest[k] = v
+        else:
+            log.info(f'{path}. added {k}: {v}')
+            dest[k] = v
+    for k, v in dest.items():
+        if k not in src:
+            log.info(f'{path}. deleted {k}: {v}')
+            dest.pop(k)
 
 def check_categories():
     # noinspection PyShadowingNames
@@ -245,9 +278,36 @@ def main():
 
                 # noinspection PyShadowingNames
                 config = get_config()
-                useragent = config['telex']['useragent']
+                telex_config = config['telex']
+                useragent = telex_config['useragent']
 
-                #download_content(config['telex']['api_url'], useragent)
+                '''
+                articles_per_page = telex_config.getint('articles_per_page', fallback = 25)
+                articles = ListAsDictJsonText()
+                page = 80
+                while True:
+                    telex_api_url = telex_config['api_url'] + f'?perPage={articles_per_page}&page={page}'
+                    log.info(f'API: {telex_api_url}')
+                    content = download_content(telex_api_url, useragent)
+                    Path('articles.api.json').write_text(content, encoding = 'utf-8')
+                    json_data = json.loads(content)
+                    if isinstance(json_data, list):
+                        articles.read_list(json_data)
+                    else:
+                        if isinstance(json_data, dict) and ('items' in json_data):
+                            articles.read_list(json_data['items'])
+                        else:
+                            raise Exception(f'Unexpected JSON structure')
+                    for k, v in articles.items():
+                        if k in articles_json:
+                            update_article(str(k), v, articles_json[k])
+                        else:
+                            pass
+                            #articles_json[k] = v
+                    if len(articles) < articles_per_page:
+                        break
+                    page += 1
+                '''
 
                 for k, v in config['collect_links'].items():
                     if v != '':
@@ -337,12 +397,7 @@ def main():
                 articles_json.write(create_backup = True, check_for_changes = True)
                 telex_json.write(create_backup = True, check_for_changes = True)
         except urllib.error.HTTPError as e:
-            if (
-                    (e.code == 500) and (e.reason == 'RuntimeError')) or (
-                    (e.code == 503) and (e.reason == 'Service Unavailable')) or (
-                    (e.code == 408) and (e.reason == 'Request Time-out')) or (
-                    (e.code == 10060) and (e.reason == 'WinError')
-            ):
+            if e.code in [408, 500, 502, 503, 504, 10060]:
                 log.error(f'Unable to download URL ({e}): {e.url}')
                 time.sleep(10 * 60)
             else:

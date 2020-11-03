@@ -10,10 +10,7 @@ class ListAsDictJsonText(jsonfile.JsonText):
             json_list.append(item)
         return json.dumps(json_list, ensure_ascii = False, indent = '\t', sort_keys = True)
 
-    def read_text(self, text: str):
-        json_list = json.loads(text)
-        if not isinstance(json_list, list):
-            raise Exception(f'JSON list expected')
+    def read_list(self, json_list: list):
         ids = set()
         for item in json_list:
             item_id = str(item.get('id', ''))
@@ -27,8 +24,15 @@ class ListAsDictJsonText(jsonfile.JsonText):
         del ids
         self.clear()
         for item in json_list:
-            item_id = item.pop('id')
-            self[item_id] = item
+            item_copy = item.copy()
+            item_id = item_copy.pop('id')
+            self[item_id] = item_copy
+
+    def read_text(self, text: str):
+        json_list = json.loads(text)
+        if not isinstance(json_list, list):
+            raise Exception('JSON list expected')
+        self.read_list(json_list)
 
 class ListAsDictJsonFile(ListAsDictJsonText, jsonfile.JsonFile):
     pass
