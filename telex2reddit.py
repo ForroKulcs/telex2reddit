@@ -8,6 +8,7 @@ import logging.config
 from pathlib import Path
 import praw
 import praw.exceptions
+import prawcore.exceptions
 import re
 from setfile import SetFile
 import ssl
@@ -145,13 +146,12 @@ def connect_reddit(name: str, useragent: str) -> praw.Reddit:
     assert username == name
     return reddit
 
-# noinspection PyUnresolvedReferences
-def get_subreddit() -> praw.models.Subreddit:
+def get_reddit() -> praw.Reddit:
     # noinspection PyShadowingNames
     config = get_config()
     reddit = connect_reddit(config['reddit']['username'], 'Script by u/' + config['reddit']['script_author'])
     reddit.validate_on_submit = True
-    return reddit.subreddit(config['reddit']['subreddit'])
+    return reddit
 
 def update_article(path: str, src: dict, dest: dict):
     for k, v in src.items():
@@ -189,7 +189,7 @@ def check_categories():
     config = get_config()
     categories = config['categories']
     flair_classes = {}
-    subreddit = get_subreddit()
+    subreddit = get_reddit().subreddit(config['reddit']['subreddit'])
     for flair in subreddit.flair.link_templates:
         if flair['type'] != 'text':
             continue
@@ -355,7 +355,8 @@ def main():
                     log.info(f'submit: {full_url}')
                     article_title = telex_json[oldest_url].get('article_title', '').strip()
                     assert article_title != '', f'No article_title: {oldest_url}'
-                    subreddit = get_subreddit()
+                    reddit = get_reddit()
+                    subreddit = reddit.subreddit(config['reddit']['subreddit'])
                     utc_time_str = datetime2iso8601(datetime.utcnow()) + 'Z'
                     submission = None
                     try:
@@ -383,8 +384,31 @@ def main():
                         if ('english' in telex_json[oldest_url]) and (telex_json[oldest_url]['english']):
                             collection = subreddit.collections(config['reddit']['english_collection_id'])
                             reddit_url = 'https://reddit.com' + submission.permalink
-                            log.info(f'Add new english post to collection: {reddit_url}')
+                            log.info(f'add new english post to collection: {reddit_url}')
                             collection.mod.add_post(reddit_url)
+
+                            subreddit_english = config['reddit']['subreddit_english']
+                            log.info(f'submit to {subreddit_english}: {full_url}')
+                            subreddit_english = reddit.subreddit(subreddit_english)
+                            try:
+                                submission = subreddit_english.submit(
+                                    title = article_title,
+                                    selftext = None,
+                                    url = full_url,
+                                    flair_id = None,
+                                    flair_text = None,
+                                    resubmit = False,
+                                    send_replies = False)
+                                telex_json[oldest_url]['reddit_english_url'] = submission.permalink
+                            except praw.exceptions.RedditAPIException as e:
+                                for eitem in e.items:
+                                    if eitem.error_type != 'ALREADY_SUB':
+                                        raise
+                                    if eitem.field != 'url':
+                                        raise
+                                    if eitem.message != 'that link has already been submitted':
+                                        raise
+                                    log.warning(eitem.error_message)
             finally:
                 if '' in telex_urls:
                     telex_urls.remove('')
@@ -397,11 +421,10 @@ def main():
                 articles_json.write(create_backup = True, check_for_changes = True)
                 telex_json.write(create_backup = True, check_for_changes = True)
         except urllib.error.HTTPError as e:
-            if e.code in [408, 500, 502, 503, 504, 10060]:
-                log.error(f'Unable to download URL ({e}): {e.url}')
-                time.sleep(10 * 60)
-            else:
-                log.exception('Exception!')
+            log.error(f'Unable to download URL ({e}): {e.url}')
+            time.sleep(10 * 60)
+        except prawcore.exceptions.ServerError as e:
+            log.error(f'Reddit error: {e}')
         except:
             log.exception('Exception!')
 
