@@ -1,8 +1,53 @@
 {
 	"version": 1,
+	"filters": {
+		"notset_level_filter": {
+			"()": "levelfilter.NotsetLevelFilter"
+		},
+		"debug_level_filter": {
+			"()": "levelfilter.DebugLevelFilter"
+		},
+		"info_level_filter": {
+			"()": "levelfilter.InfoLevelFilter"
+		},
+		"warning_level_filter": {
+			"()": "levelfilter.WarningLevelFilter"
+		},
+		"error_level_filter": {
+			"()": "levelfilter.ErrorLevelFilter"
+		},
+		"critical_level_filter": {
+			"()": "levelfilter.CriticalLevelFilter"
+		}
+	},
 	"formatters": {
-		"simple": {
+		"colorless_formatter": {
 			"format": "{message}",
+			"datefmt": "%H:%M:%S",
+			"style": "{"
+		},
+		"grey_formatter": {
+			"format": "\u001b[30m{message}\u001b[0m",
+			"datefmt": "%H:%M:%S",
+			"style": "{"
+		},
+		"red_formatter": {
+			"format": "\u001b[31m{message}\u001b[0m",
+			"datefmt": "%H:%M:%S",
+			"style": "{"
+		},
+		"white_formatter": {
+			"format": "\u001b[37m{message}\u001b[0m",
+			"datefmt": "%H:%M:%S",
+			"style": "{"
+		},
+		"reverse_red_formatter": {
+			"format": "\u001b[7m\u001b[31m{message}\u001b[0m",
+			"datefmt": "%H:%M:%S",
+			"style": "{"
+		},
+		"reverse_magenta_formatter": {
+			"format": "\u001b[7m\u001b[35m{message}\u001b[0m",
 			"datefmt": "%H:%M:%S",
 			"style": "{"
 		},
@@ -13,10 +58,53 @@
 		}
 	},
 	"handlers": {
-		"console": {
+		"colored_notset_handler": {
 			"class": "logging.StreamHandler",
 			"level": "NOTSET",
-			"formatter": "simple"
+			"filters": [
+				"notset_level_filter"
+			],
+			"formatter": "colorless_formatter"
+		},
+		"colored_debug_handler": {
+			"class": "logging.StreamHandler",
+			"level": "DEBUG",
+			"filters": [
+				"debug_level_filter"
+			],
+			"formatter": "white_formatter"
+		},
+		"colored_info_handler": {
+			"class": "logging.StreamHandler",
+			"level": "INFO",
+			"filters": [
+				"info_level_filter"
+			],
+			"formatter": "grey_formatter"
+		},
+		"colored_warning_handler": {
+			"class": "logging.StreamHandler",
+			"level": "WARNING",
+			"filters": [
+				"warning_level_filter"
+			],
+			"formatter": "red_formatter"
+		},
+		"colored_error_handler": {
+			"class": "logging.StreamHandler",
+			"level": "ERROR",
+			"filters": [
+				"error_level_filter"
+			],
+			"formatter": "reverse_red_formatter"
+		},
+		"colored_critical_handler": {
+			"class": "logging.StreamHandler",
+			"level": "CRITICAL",
+			"filters": [
+				"critical_level_filter"
+			],
+			"formatter": "reverse_magenta_formatter"
 		},
 		"file_info": {
 			"backupCount": 30,
@@ -38,14 +126,18 @@
 		}
 	},
 	"loggers": {
-		"__main__": {
+		"root": {
 			"handlers": [
-				"console",
+				"colored_notset_handler",
+				"colored_debug_handler",
+				"colored_info_handler",
+				"colored_warning_handler",
+				"colored_error_handler",
+				"colored_critical_handler",
 				"file_info",
 				"file_error"
 			],
-			"level": "DEBUG",
-			"propagate": true
+			"level": 0
 		}
 	}
 }

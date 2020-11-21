@@ -17,8 +17,7 @@ import time
 import urllib.error
 import urllib.request
 
-log = logging.Logger
-logging.setLoggerClass(log)
+log = logging.getLogger()
 
 def check_config() -> bool:
     global config
@@ -387,6 +386,8 @@ def main():
                             log.info(f'add new english post to collection: {reddit_url}')
                             collection.mod.add_post(reddit_url)
 
+                            if 'telex' in article_title.lower():
+                                log.warning(f'Telex in title: {article_title}')
                             subreddit_english = config['reddit']['subreddit_english']
                             log.info(f'submit to {subreddit_english}: {full_url}')
                             subreddit_english = reddit.subreddit(subreddit_english)
@@ -445,7 +446,6 @@ if __name__ == '__main__':
         if 'filename' in handler:
             Path(handler['filename']).parent.mkdir(exist_ok = True, parents = True)
     logging.config.dictConfig(logging_config)
-    log = logging.getLogger(__name__)
     log.info(f'Started at: {datetime.now().replace(microsecond = 0)}')
     main()
     log.info(f'Finished at: {datetime.now().replace(microsecond = 0)}')
