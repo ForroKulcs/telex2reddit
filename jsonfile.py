@@ -75,7 +75,7 @@ class JsonFile(JsonText):
                     old = self._read()
                     if old == text:
                         if self.log:
-                            self.log.info(f'No change: {self.path}')
+                            self.log.debug(f'No change: {self.path}')
                         return
                 except:
                     if self.log:

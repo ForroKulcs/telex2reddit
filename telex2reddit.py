@@ -179,6 +179,8 @@ def update_article(path: str, src: dict, dest: dict):
             log.info(f'{path}. added {k}: {v}')
             dest[k] = v
     for k, v in dest.items():
+        if k == 'id':
+            continue
         if k not in src:
             log.info(f'{path}. deleted {k}: {v}')
             dest.pop(k)
@@ -211,7 +213,7 @@ def check_categories():
         revision_author = revision['author']
         if revision_author != config['reddit']['script_author']:
             raise Exception(f'Unexpected automoderator author: {revision_author}')
-    pattern = re.compile(r'---\s+url: \["telex.hu/(\w+)/"]\s+action:\s*approve\s+set_flair:\s+template_id:\s*([\da-f-]+)\s*')
+    pattern = re.compile(r'---\s+url: \["telex.hu/([\w-]+)/"]\s+action:\s*approve\s+set_flair:\s+template_id:\s*([\da-f-]+)\s*')
     last_pos = 0
     automod_flairs = {}
     automoderator_content_md = automoderator.content_md
@@ -247,7 +249,8 @@ def main():
     articles_json = ListAsDictJsonGzip('articles.json.gz', log = log)
     telex_urls = SetFile('telex.urls.txt', log = log)
     telex_urls_skip = SetFile('telex.urls.skip.txt', log = log)
-    telex_json = JsonGzip('telex.json.gz', log = log)
+    #telex_json = JsonGzip('telex.json.gz', log = log)
+    telex2_json = JsonGzip('telex2.json.gz', log = log)
     while True:
         try:
             telex_urls.read()
@@ -267,26 +270,29 @@ def main():
                 ensure_category(category, category_name)
                 articles_json[int(k)] = v
 
-            telex_json.read()
+            #telex_json.read()
+            telex2_json.read()
 
             try:
+                '''
                 for file in Path('sample').glob('*.html'):
                     log.info(f'read_sample: {file}')
                     content = file.read_text(encoding = 'utf-8')
                     collect_links(content, telex_json, telex_urls)
+                '''
 
                 # noinspection PyShadowingNames
                 config = get_config()
                 telex_config = config['telex']
                 useragent = telex_config['useragent']
 
-                '''
+                #'''
                 articles_per_page = telex_config.getint('articles_per_page', fallback = 25)
                 articles = ListAsDictJsonText()
-                page = 80
+                page = 1
                 while True:
                     telex_api_url = telex_config['api_url'] + f'?perPage={articles_per_page}&page={page}'
-                    log.info(f'API: {telex_api_url}')
+                    log.debug(f'API: {telex_api_url}')
                     content = download_content(telex_api_url, useragent)
                     Path('articles.api.json').write_text(content, encoding = 'utf-8')
                     json_data = json.loads(content)
@@ -297,24 +303,26 @@ def main():
                             articles.read_list(json_data['items'])
                         else:
                             raise Exception(f'Unexpected JSON structure')
+                    new_article = False
                     for k, v in articles.items():
                         if k in articles_json:
                             update_article(str(k), v, articles_json[k])
                         else:
-                            pass
-                            #articles_json[k] = v
+                            articles_json[k] = v
+                            new_article = True
+                    if not new_article:
+                        break
                     if len(articles) < articles_per_page:
                         break
                     page += 1
+                #'''
                 '''
-
                 for k, v in config['collect_links'].items():
                     if v != '':
                         time.sleep(5)
                         log.info(f'read_{k}: {v}')
                         content = download_content(v, useragent)
                         collect_links(content, telex_json, telex_urls, k == 'english')
-
                 new_urls = set()
                 for url in telex_urls:
                     if url not in telex_json:
@@ -337,22 +345,50 @@ def main():
                         continue
                     time.sleep(1)
                     read_article(url, telex_json, telex_urls, telex_urls_skip)
+                '''
+
+                for k, v in articles_json.items():
+                    if v['contentType'] != 'article':
+                        log.warning(f'contentType ({v["contentType"]}) not article: {k}')
+                        continue
+                    if v['type'] != 'article':
+                        if v['type'] != 'liveblog':
+                            log.warning(f'type ({v["type"]}) not article: {k}')
+                    if not v['active']:
+                        log.warning(f'not active: {k}')
+                        continue
+                    pubDate = datetime.utcfromtimestamp(v['pubDate'])
+                    url_path = v['slug']
+                    if not re.fullmatch(r'[\w-]+', url_path):
+                        log.error(url_path)
+                    if url_path not in telex2_json:
+                        log.info(f'new article: {url_path}')
+                        telex2_json[url_path] = {}
+                    telex2_json[url_path]['article_date'] = datetime2iso8601(pubDate) + 'Z'
+                    telex2_json[url_path]['article_title'] = v['title']
+                    telex2_json[url_path]['category'] = v['mainSuperTag']['slug']
+                    telex2_json[url_path]['date_dir'] = pubDate.strftime('%Y/%m/%d')
+                    if v['english']:
+                        telex2_json[url_path]['english'] = True
+                    #telex2_json[url_path]['parse_date'] = datetime2iso8601(datetime.utcnow()) + 'Z'
+
                 oldest_url = None
                 remaining_articles = 0
-                for k, v in telex_json.items():
-                    if 'https://telex.hu/' + k in telex_urls_skip:
-                        continue
+                for k, v in telex2_json.items():
+                    #if 'https://telex.hu/' + k in telex_urls_skip:
+                    #    continue
                     if 'reddit_date' in v:
                         continue
                     if 'article_date' not in v:
                         continue
                     remaining_articles += 1
-                    if (oldest_url is None) or (telex_json[k]['article_date'] < telex_json[oldest_url]['article_date']):
+                    if (oldest_url is None) or (telex2_json[k]['article_date'] < telex2_json[oldest_url]['article_date']):
                         oldest_url = k
                 if oldest_url:
-                    full_url = 'https://telex.hu/' + oldest_url.strip('/')
+                    oldest = telex2_json[oldest_url]
+                    full_url = 'https://telex.hu/' + oldest['category'] + '/' + oldest['date_dir'] + '/' + oldest_url.strip('/')
                     log.info(f'submit: {full_url}')
-                    article_title = telex_json[oldest_url].get('article_title', '').strip()
+                    article_title = oldest.get('article_title', '').strip()
                     assert article_title != '', f'No article_title: {oldest_url}'
                     reddit = get_reddit()
                     subreddit = reddit.subreddit(config['reddit']['subreddit'])
@@ -376,11 +412,11 @@ def main():
                             if eitem.message != 'that link has already been submitted':
                                 raise
                             log.warning(eitem.error_message)
-                    telex_json[oldest_url]['reddit_date'] = utc_time_str
-                    telex_json[oldest_url]['reddit_url'] = '' if submission is None else submission.permalink
+                    telex2_json[oldest_url]['reddit_date'] = utc_time_str
+                    telex2_json[oldest_url]['reddit_url'] = '' if submission is None else submission.permalink
                     remaining_articles -= 1
                     if submission:
-                        if ('english' in telex_json[oldest_url]) and (telex_json[oldest_url]['english']):
+                        if ('english' in telex2_json[oldest_url]) and (telex2_json[oldest_url]['english']):
                             collection = subreddit.collections(config['reddit']['english_collection_id'])
                             reddit_url = 'https://reddit.com' + submission.permalink
                             log.info(f'add new english post to collection: {reddit_url}')
@@ -400,7 +436,7 @@ def main():
                                     flair_text = None,
                                     resubmit = False,
                                     send_replies = False)
-                                telex_json[oldest_url]['reddit_english_url'] = submission.permalink
+                                telex2_json[oldest_url]['reddit_english_url'] = submission.permalink
                             except praw.exceptions.RedditAPIException as e:
                                 for eitem in e.items:
                                     if eitem.error_type != 'ALREADY_SUB':
@@ -413,14 +449,15 @@ def main():
             finally:
                 if '' in telex_urls:
                     telex_urls.remove('')
-                telex_urls.write(create_backup = True, check_for_changes = True)
+                #telex_urls.write(create_backup = True, check_for_changes = True)
 
                 if '' in telex_urls_skip:
                     telex_urls_skip.remove('')
-                telex_urls_skip.write(create_backup = True, check_for_changes = True)
+                #telex_urls_skip.write(create_backup = True, check_for_changes = True)
 
                 articles_json.write(create_backup = True, check_for_changes = True)
-                telex_json.write(create_backup = True, check_for_changes = True)
+                #telex_json.write(create_backup = True, check_for_changes = True)
+                telex2_json.write(create_backup = True, check_for_changes = True)
         except urllib.error.HTTPError as e:
             log.error(f'Unable to download URL ({e}): {e.url}')
             time.sleep(10 * 60)
@@ -432,7 +469,7 @@ def main():
         check_interval = get_config()['telex'].getint('check_interval')
         if remaining_articles > 0:
             check_interval /= 2
-        log.debug(f'time.sleep({check_interval}) [remaining articles: {remaining_articles} of {len(telex_urls)} (skipping {len(telex_urls_skip)})]')
+        log.debug(f'time.sleep({check_interval}) [remaining articles: {remaining_articles}]')
         time.sleep(check_interval)
 
 if __name__ == '__main__':

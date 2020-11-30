@@ -20,7 +20,7 @@ class HungarianParserInfo(dateutil.parser.parserinfo):
 class TelexHTMLParser(html.parser.HTMLParser):
     def __init__(self, log: logging.Logger = None):
         html.parser.HTMLParser.__init__(self)
-        self._link_pattern = re.compile(r'(?:(?:https?://)(?:www\.)?telex\.hu)?/+(\w+/+\d+/+\d+/+\d+(?:/+[\w-]+)+)/*', re.IGNORECASE)
+        self._link_pattern = re.compile(r'(?:(?:https?://)(?:www\.)?telex\.hu)?/+([\w-]+/+\d+/+\d+/+\d+(?:/+[\w-]+)+)/*', re.IGNORECASE)
         self._in_article_date = False
         self._in_article_title = False
         self._in_article_title_bottom = False

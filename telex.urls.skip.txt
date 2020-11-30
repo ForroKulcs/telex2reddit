@@ -1,6 +1,7 @@
 https://telex.hu/belfold/2020/11/09/kispest-polgarmestere-is-elkapta-a-koronavirust
 https://telex.hu/belfold/2020/11/16/parlament-azonnali-kerdesek-oraja
 https://telex.hu/belfold/2020/11/19/kormanyinfo-veszelyhelyzet-koronavirus-eu-koltsegvetes-gulyas-gergely
+https://telex.hu/belfold/2020/11/26/kormenyinfo-november-26-gulyas-gergely-elo-veszelyhelyzet-eu
 https://telex.hu/koronavirus/2020/11/03/a-legfontosabb-hirek-a-koronavirusrol-kedde
 https://telex.hu/koronavirus/2020/11/04/koronavirus-legfontosabb-hirek-szerdan
 https://telex.hu/koronavirus/2020/11/05/fertozott-lett-a-magyar-labdarugo-valogatott-palyaedzoje
@@ -19,6 +20,13 @@ https://telex.hu/koronavirus/2020/11/16/koronavirus-magyarorszag-vilagszerte-pp
 https://telex.hu/koronavirus/2020/11/18/koronavirus-pp-magyarorszag-vilagszerte-1
 https://telex.hu/koronavirus/2020/11/19/koronavirus-percrol-percre-vilagszerte-magyarorszag
 https://telex.hu/koronavirus/2020/11/20/koronavirus-percrol-percre-magyarorszag-kulfold
+https://telex.hu/koronavirus/2020/11/21/koronavirus-hirei-szombat-november-21
+https://telex.hu/koronavirus/2020/11/22/koronavirus-vasarnapi-hirek-fertozott
+https://telex.hu/koronavirus/2020/11/23/koronavirus-covid-jarvany-adatok-percrol-percre-vakcina
+https://telex.hu/koronavirus/2020/11/24/koronavirus-percrol-percre-magyarorszag-kulfold-1
+https://telex.hu/koronavirus/2020/11/25/koronavirus-vakcina-statisztika-napi-hirek-korhaz-egeszsegugy-karanten
+https://telex.hu/koronavirus/2020/11/26/koronavirus-november-26
+https://telex.hu/koronavirus/2020/11/27/koronavirus-november-27
 https://telex.hu/kulfold/2020/10/04/senki-nem-tudja-mi-lesz-de-biztos-nagyon-durva
 https://telex.hu/kulfold/2020/10/19/kozeliti-a-40-milliot-a-fertozottek-szama-vilagszerte
 https://telex.hu/kulfold/2020/10/23/usa-elnokvalasztas-trump-biden-csataterallam-felmeresek
@@ -32,4 +40,5 @@ https://telex.hu/kult/2020/10/04/szfe-szte-szegedi-egyetem-demonstracio
 https://telex.hu/sport/2020/11/04/futball-ferencvaros-juventus-bajnokok-ligaja-csoportkor
 https://telex.hu/sport/2020/11/09/ibrahimovic-milan-svedorszag-hergeles
 https://telex.hu/sport/2020/11/12/magyarorszag-izland-europa-bajnoki-potselejtezo-puskas-arene
+https://telex.hu/sport/2020/11/24/ferencvaros-juventus-bajnokok-ligaja-cristiano-ronaldo
 https://telex.hu/szorakozas/2020/10/05/thomas-jefferson-byrd-gyilkossag-atlanta

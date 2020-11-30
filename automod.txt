@@ -4,6 +4,11 @@
     set_flair:
         template_id: 863b9960-05bb-11eb-9923-0ed8d5403d73
 ---
+    url: ["telex.hu/defacto/"]
+    action: approve
+    set_flair:
+        template_id: 423b1e1a-3177-11eb-9155-0ef39df6ab17
+---
     url: ["telex.hu/english/"]
     action: approve
     set_flair:
@@ -63,6 +68,11 @@
     action: approve
     set_flair:
         template_id: a1b33888-05bb-11eb-9ac7-0e18c3ddf875
+---
+    url: ["telex.hu/tamogatott-tartalom/"]
+    action: approve
+    set_flair:
+        template_id: 7c18010c-315e-11eb-a78b-0e108847a027
 ---
     url: ["telex.hu/tech/"]
     action: approve
