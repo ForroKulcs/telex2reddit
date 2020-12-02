@@ -152,37 +152,84 @@ def get_reddit() -> praw.Reddit:
     reddit.validate_on_submit = True
     return reddit
 
-def update_article(path: str, src: dict, dest: dict):
+def same_objects(a, b):
+    return str(a) == str(b)
+
+def update_list(path: str, src: list, dest: list):
+    if len(src) == 0 and len(dest) == 0:
+        return
+    only_append = True
+    for i in range(len(src)):
+        if i < len(dest):
+            if not same_objects(src[i], dest[i]):
+                only_append = False
+                break
+        else:
+            log.info(f'{path} appended {i}.: {src[i]}')
+            dest.append(src[i])
+    if only_append:
+        i = len(dest) - 1
+        while i >= len(src):
+            log.info(f'{path} deleted {i}.: {dest[i]}')
+            dest.pop(i)
+            i -= 1
+        return
+    src_list = sorted([str(item) for item in src])
+    dest_list = sorted([str(item) for item in dest])
+    if src_list == dest_list:
+        return
+    for item in src:
+        if not isinstance(item, dict):
+            raise Exception(f'{path} unexpected list item: {item}')
+    for item in dest:
+        if not isinstance(item, dict):
+            raise Exception(f'{path} unexpected list item: {item}')
+    if 'id' in src[0]:
+        key_name = 'id'
+    elif 'slug' in src[0]:
+        key_name = 'slug'
+    else:
+        raise Exception(f'{path} unable to get id: {src[0]}')
+
+    src_dict = {item[key_name]: item for item in src}
+    dest_dict = {item[key_name]: item for item in dest}
+    for k, v in src_dict.items():
+        if k in dest_dict:
+            for i in range(len(dest)):
+                if dest[i][key_name] == k:
+                    update_item(f'{path}/{i}', v, dest[i])
+                    break
+        else:
+            log.info(f'{path} appended: {v}')
+            dest.append(v)
+    for k, v in dest_dict.items():
+        if k not in src_dict:
+            for i in range(len(dest)):
+                if dest[i][key_name] == k:
+                    log.info(f'{path} deleted {i}.: {dest[i]}')
+                    dest.pop(i)
+                    break
+
+def update_item(path: str, src: dict, dest: dict):
     for k, v in src.items():
         if k in dest:
             if str(dest[k]) != str(v):
                 if isinstance(dest[k], dict) and isinstance(v, dict):
-                    update_article(f'{path}/{k}', v, dest[k])
+                    update_item(f'{path}/{k}', v, dest[k])
                     continue
                 if isinstance(dest[k], list) and isinstance(v, list):
-                    if len(dest[k]) <= 0:
-                        log.info(f'{path}. extended {k}: {v}')
-                        dest[k].extend(v)
-                        continue
-                    if len(v) <= 0:
-                        log.info(f'{path}. cleared {k}: {v}')
-                        dest[k].clear()
-                        continue
-                    if len(dest[k]) == len(v):
-                        for i in range(len(v)):
-                            update_article(f'{path}/{k}[{i}]', v[i], dest[k][i])
-                        continue
-                    raise Exception('Unexpected lists')
-                log.info(f'{path}. changed {k}: from {dest[k]} to {v}')
+                    update_list(f'{path}/{k}', v, dest[k])
+                    continue
+                log.info(f'{path} changed {k}: from {dest[k]} to {v}')
                 dest[k] = v
         else:
-            log.info(f'{path}. added {k}: {v}')
+            log.info(f'{path} added {k}: {v}')
             dest[k] = v
     for k, v in dest.items():
         if k == 'id':
             continue
         if k not in src:
-            log.info(f'{path}. deleted {k}: {v}')
+            log.info(f'{path} deleted {k}: {v}')
             dest.pop(k)
 
 def check_categories():
@@ -306,7 +353,7 @@ def main():
                     new_article = False
                     for k, v in articles.items():
                         if k in articles_json:
-                            update_article(str(k), v, articles_json[k])
+                            update_item(str(k), v, articles_json[k])
                         else:
                             articles_json[k] = v
                             new_article = True
@@ -468,7 +515,7 @@ def main():
 
         check_interval = get_config()['telex'].getint('check_interval')
         if remaining_articles > 0:
-            check_interval /= 2
+            check_interval /= 5
         log.debug(f'time.sleep({check_interval}) [remaining articles: {remaining_articles}]')
         time.sleep(check_interval)
 
@@ -483,6 +530,20 @@ if __name__ == '__main__':
         if 'filename' in handler:
             Path(handler['filename']).parent.mkdir(exist_ok = True, parents = True)
     logging.config.dictConfig(logging_config)
+
+    if 'rollbar' in logging_config:
+        rollbar_config = logging_config['rollbar']
+        if isinstance(rollbar_config, dict) and rollbar_config.get('enabled', False):
+            access_token = rollbar_config['access_token']
+            environment = rollbar_config.get('environment', None)
+            import rollbar
+            import rollbar.logger
+
+            rollbar.SETTINGS['allow_logging_basic_config'] = False
+            handler = rollbar.logger.RollbarHandler(access_token = access_token, environment = environment)
+            handler.setLevel(rollbar_config.get('level', logging.WARNING))
+            log.addHandler(handler)
+
     log.info(f'Started at: {datetime.now().replace(microsecond = 0)}')
     main()
     log.info(f'Finished at: {datetime.now().replace(microsecond = 0)}')
