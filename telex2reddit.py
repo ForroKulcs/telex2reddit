@@ -534,14 +534,10 @@ if __name__ == '__main__':
     if 'rollbar' in logging_config:
         rollbar_config = logging_config['rollbar']
         if isinstance(rollbar_config, dict) and rollbar_config.get('enabled', False):
-            access_token = rollbar_config['access_token']
-            environment = rollbar_config.get('environment', None)
             import rollbar
             import rollbar.logger
-
             rollbar.SETTINGS['allow_logging_basic_config'] = False
-            handler = rollbar.logger.RollbarHandler(access_token = access_token, environment = environment)
-            handler.setLevel(rollbar_config.get('level', logging.WARNING))
+            handler = rollbar.logger.RollbarHandler(**rollbar_config['handler'])
             log.addHandler(handler)
 
     log.info(f'Started at: {datetime.now().replace(microsecond = 0)}')

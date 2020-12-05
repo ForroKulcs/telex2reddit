@@ -22,37 +22,37 @@
 	},
 	"formatters": {
 		"colorless_formatter": {
-			"format": "{message}",
+			"format": "[{asctime}] {message}",
 			"datefmt": "%H:%M:%S",
 			"style": "{"
 		},
 		"grey_formatter": {
-			"format": "\u001b[30m{message}\u001b[0m",
+			"format": "\u001b[30m[{asctime}] {message}\u001b[0m",
 			"datefmt": "%H:%M:%S",
 			"style": "{"
 		},
 		"red_formatter": {
-			"format": "\u001b[31m{message}\u001b[0m",
+			"format": "\u001b[31m[{asctime}] {message}\u001b[0m",
 			"datefmt": "%H:%M:%S",
 			"style": "{"
 		},
 		"white_formatter": {
-			"format": "\u001b[37m{message}\u001b[0m",
+			"format": "\u001b[37m[{asctime}] {message}\u001b[0m",
 			"datefmt": "%H:%M:%S",
 			"style": "{"
 		},
 		"reverse_red_formatter": {
-			"format": "\u001b[7m\u001b[31m{message}\u001b[0m",
+			"format": "\u001b[7m\u001b[31m[{asctime}] {message}\u001b[0m",
 			"datefmt": "%H:%M:%S",
 			"style": "{"
 		},
 		"reverse_magenta_formatter": {
-			"format": "\u001b[7m\u001b[35m{message}\u001b[0m",
+			"format": "\u001b[7m\u001b[35m[{asctime}] {message}\u001b[0m",
 			"datefmt": "%H:%M:%S",
 			"style": "{"
 		},
 		"complex": {
-			"format": "{asctime}[{levelname}]: {message}",
+			"format": "[{asctime}]{levelname}: {message}",
 			"datefmt": "%H:%M:%S",
 			"style": "{"
 		}
@@ -138,6 +138,14 @@
 				"file_error"
 			],
 			"level": 0
+		}
+	},
+	"rollbar": {
+		"enabled": true,
+		"handler": {
+			"access_token": "",
+			"environment": "production",
+			"level": "WARNING"
 		}
 	}
 }
