@@ -4,6 +4,11 @@
     set_flair:
         template_id: 863b9960-05bb-11eb-9923-0ed8d5403d73
 ---
+    url: ["telex.hu/chart/"]
+    action: approve
+    set_flair:
+        template_id: 79cf7d2e-5cee-11eb-9f37-0e8304f0a6f1
+---
     url: ["telex.hu/defacto/"]
     action: approve
     set_flair:
