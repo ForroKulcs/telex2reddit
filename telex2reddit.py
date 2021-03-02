@@ -31,8 +31,8 @@ def check_config() -> bool:
             if mtime_ns == config_timestamp:
                 return True
         config_timestamp = mtime_ns
-        config = configparser.ConfigParser(interpolation = None)
-        config.read(config_path, encoding = 'utf-8')
+        config = configparser.ConfigParser(interpolation=None)
+        config.read(config_path, encoding='utf-8')
         return True
     except:
         log.exception('Exception in check_config()')
@@ -53,8 +53,8 @@ def ensure_category(category: str, category_name: str):
         log.warning(f'New category: {category} ({category_name})')
         try:
             config.set('categories', category, category_name)
-            with config_path.open('w', encoding = 'utf-8') as ini:
-                config.write(ini, space_around_delimiters = False)
+            with config_path.open('w', encoding='utf-8') as ini:
+                config.write(ini, space_around_delimiters=False)
         except:
             log.exception(f'Unable to add new category: {category} ({category_name}): {config_path}')
     if category_name != config['categories'].get(category, ''):
@@ -63,7 +63,7 @@ def ensure_category(category: str, category_name: str):
 def download_content(url: str, useragent: str, telex_urls_skip: set = None, default_encoding: str = 'utf-8') -> str:
     request = urllib.request.Request(url)
     request.add_header('User-Agent', useragent)
-    response = urllib.request.urlopen(request, context = ssl.SSLContext())
+    response = urllib.request.urlopen(request, context=ssl.SSLContext())
     data = response.read()
     response_url = response.url
     if response_url != url:
@@ -75,10 +75,10 @@ def download_content(url: str, useragent: str, telex_urls_skip: set = None, defa
     charset = response.headers.get_content_charset()
     if charset is None:
         charset = default_encoding
-    return data.decode(encoding = charset, errors = 'replace')
+    return data.decode(encoding=charset, errors='replace')
 
 def datetime2iso8601(value: datetime) -> str:
-    return value.isoformat(timespec = 'minutes' if value.second == 0 else 'seconds')
+    return value.isoformat(timespec='minutes' if value.second == 0 else 'seconds')
 
 def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_skip: set):
     url = 'https://telex.hu/' + url_path
@@ -88,19 +88,19 @@ def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_sk
     use_article_cache = telex_config.getboolean('use_article_cache')
     if use_article_cache:
         telex_path = Path('log').joinpath('telex.hu')
-        telex_path.joinpath(url_path).with_suffix('.html').unlink(missing_ok = True)
+        telex_path.joinpath(url_path).with_suffix('.html').unlink(missing_ok=True)
         article_path = telex_path.joinpath(url_path).with_suffix('.gz')
         if article_path.exists():
             article_cache_valid_time = telex_config.getfloat('article_cache_valid_time')
             if datetime.utcnow().timestamp() < article_path.stat().st_mtime + article_cache_valid_time:
-                with gzip.open(article_path, 'rt', encoding = 'utf-8') as f:
+                with gzip.open(article_path, 'rt', encoding='utf-8') as f:
                     content = f.read()
     if content == '':
         content = download_content(url, telex_config['useragent'], telex_urls_skip)
     if use_article_cache:
         # noinspection PyUnboundLocalVariable
-        article_path.parent.mkdir(exist_ok = True, parents = True)
-        with gzip.open(article_path, 'wt', compresslevel = 9, encoding = 'utf-8') as f:
+        article_path.parent.mkdir(exist_ok=True, parents=True)
+        with gzip.open(article_path, 'wt', compresslevel=9, encoding='utf-8') as f:
             f.write(content)
     html_parser = TelexHTMLParser(log)
     html_parser.feed(content)
@@ -121,24 +121,24 @@ def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_sk
         if url not in telex_json:
             telex_json[url] = {}
 
-def collect_links(content: str, telex_json: dict, telex_urls: set, in_english: bool = False):
-    html_parser = TelexHTMLParser(log)
-    html_parser.feed(content)
-    links = html_parser.links
-    counter = 0
-    for link in links:
-        url = link.strip()
-        telex_urls.add(url)
-        if url not in telex_json:
-            counter += 1
-            log.debug(f'{counter}. new article: {url}')
-            if in_english:
-                telex_json[url] = {'english': True}
-            else:
-                telex_json[url] = {}
+# def collect_links(content: str, telex_json: dict, telex_urls: set, in_english: bool = False):
+#     html_parser = TelexHTMLParser(log)
+#     html_parser.feed(content)
+#     links = html_parser.links
+#     counter = 0
+#     for link in links:
+#         url = link.strip()
+#         telex_urls.add(url)
+#         if url not in telex_json:
+#             counter += 1
+#             log.debug(f'{counter}. new article: {url}')
+#             if in_english:
+#                 telex_json[url] = {'english': True}
+#             else:
+#                 telex_json[url] = {}
 
 def connect_reddit(name: str, useragent: str) -> praw.Reddit:
-    reddit = praw.Reddit(name, user_agent = useragent)
+    reddit = praw.Reddit(name, user_agent=useragent)
     redditor = reddit.user.me()
     assert redditor is not None
     username = redditor.name
@@ -286,18 +286,18 @@ def check_categories():
         if flair_class not in flair_classes:
             raise Exception(f'Automoderator flair unexpected: {flair_class}')
     automod_path = Path('automod.txt')
-    if automod_path.read_text(encoding = 'utf-8') != automoderator_content_md:
-        automod_path.write_text(automoderator_content_md, encoding = 'utf-8')
+    if automod_path.read_text(encoding='utf-8') != automoderator_content_md:
+        automod_path.write_text(automoderator_content_md, encoding='utf-8')
 
 def main():
     check_categories()
 
     remaining_articles = 0
-    articles_json = ListAsDictJsonGzip('articles.json.gz', log = log)
-    telex_urls = SetFile('telex.urls.txt', log = log)
-    telex_urls_skip = SetFile('telex.urls.skip.txt', log = log)
-    #telex_json = JsonGzip('telex.json.gz', log = log)
-    telex2_json = JsonGzip('telex2.json.gz', log = log)
+    articles_json = ListAsDictJsonGzip('articles.json.gz', log=log)
+    telex_urls = SetFile('telex.urls.txt', log=log)
+    telex_urls_skip = SetFile('telex.urls.skip.txt', log=log)
+    # telex_json = JsonGzip('telex.json.gz', log=log)
+    telex2_json = JsonGzip('telex2.json.gz', log=log)
     while True:
         try:
             telex_urls.read()
@@ -317,7 +317,7 @@ def main():
                 ensure_category(category, category_name)
                 articles_json[int(k)] = v
 
-            #telex_json.read()
+            # telex_json.read()
             telex2_json.read()
 
             try:
@@ -333,15 +333,14 @@ def main():
                 telex_config = config['telex']
                 useragent = telex_config['useragent']
 
-                #'''
-                articles_per_page = telex_config.getint('articles_per_page', fallback = 25)
+                articles_per_page = telex_config.getint('articles_per_page', fallback=25)
                 articles = ListAsDictJsonText()
                 page = 1
                 while True:
                     telex_api_url = telex_config['api_url'] + f'?perPage={articles_per_page}&page={page}'
                     log.debug(f'API: {telex_api_url}')
                     content = download_content(telex_api_url, useragent)
-                    Path('articles.api.json').write_text(content, encoding = 'utf-8')
+                    Path('articles.api.json').write_text(content, encoding='utf-8')
                     json_data = json.loads(content)
                     if isinstance(json_data, list):
                         articles.read_list(json_data)
@@ -362,7 +361,7 @@ def main():
                     if len(articles) < articles_per_page:
                         break
                     page += 1
-                #'''
+
                 '''
                 for k, v in config['collect_links'].items():
                     if v != '':
@@ -417,12 +416,12 @@ def main():
                     telex2_json[url_path]['date_dir'] = pubDate.strftime('%Y/%m/%d')
                     if v['english']:
                         telex2_json[url_path]['english'] = True
-                    #telex2_json[url_path]['parse_date'] = datetime2iso8601(datetime.utcnow()) + 'Z'
+                    # telex2_json[url_path]['parse_date'] = datetime2iso8601(datetime.utcnow()) + 'Z'
 
                 oldest_url = None
                 remaining_articles = 0
                 for k, v in telex2_json.items():
-                    #if 'https://telex.hu/' + k in telex_urls_skip:
+                    # if 'https://telex.hu/' + k in telex_urls_skip:
                     #    continue
                     if 'reddit_date' in v:
                         continue
@@ -443,21 +442,21 @@ def main():
                     submission = None
                     try:
                         submission = subreddit.submit(
-                            title = article_title,
-                            selftext = None,
-                            url = full_url,
-                            flair_id = None,
-                            flair_text = None,
-                            resubmit = False,
-                            send_replies = False)
+                            title=article_title,
+                            selftext=None,
+                            url=full_url,
+                            flair_id=None,
+                            flair_text=None,
+                            resubmit=False,
+                            send_replies=False)
                     except praw.exceptions.RedditAPIException as e:
                         for eitem in e.items:
                             if eitem.error_type != 'ALREADY_SUB':
                                 raise
                             if eitem.field != 'url':
                                 raise
-                            if eitem.message != 'that link has already been submitted':
-                                raise
+                            # if eitem.message != 'that link has already been submitted':
+                            #     raise
                             log.warning(eitem.error_message)
                     telex2_json[oldest_url]['reddit_date'] = utc_time_str
                     telex2_json[oldest_url]['reddit_url'] = '' if submission is None else submission.permalink
@@ -476,13 +475,13 @@ def main():
                             subreddit_english = reddit.subreddit(subreddit_english)
                             try:
                                 submission = subreddit_english.submit(
-                                    title = article_title,
-                                    selftext = None,
-                                    url = full_url,
-                                    flair_id = None,
-                                    flair_text = None,
-                                    resubmit = False,
-                                    send_replies = False)
+                                    title=article_title,
+                                    selftext=None,
+                                    url=full_url,
+                                    flair_id=None,
+                                    flair_text=None,
+                                    resubmit=False,
+                                    send_replies=False)
                                 telex2_json[oldest_url]['reddit_english_url'] = submission.permalink
                             except praw.exceptions.RedditAPIException as e:
                                 for eitem in e.items:
@@ -490,21 +489,21 @@ def main():
                                         raise
                                     if eitem.field != 'url':
                                         raise
-                                    if eitem.message != 'that link has already been submitted':
-                                        raise
+                                    # if eitem.message != 'that link has already been submitted':
+                                    #     raise
                                     log.warning(eitem.error_message)
             finally:
                 if '' in telex_urls:
                     telex_urls.remove('')
-                #telex_urls.write(create_backup = True, check_for_changes = True)
+                # telex_urls.write(create_backup=True, check_for_changes=True)
 
                 if '' in telex_urls_skip:
                     telex_urls_skip.remove('')
-                #telex_urls_skip.write(create_backup = True, check_for_changes = True)
+                # telex_urls_skip.write(create_backup=True, check_for_changes=True)
 
-                articles_json.write(create_backup = True, check_for_changes = True)
-                #telex_json.write(create_backup = True, check_for_changes = True)
-                telex2_json.write(create_backup = True, check_for_changes = True)
+                articles_json.write(create_backup=True, check_for_changes=True)
+                # telex_json.write(create_backup=True, check_for_changes=True)
+                telex2_json.write(create_backup=True, check_for_changes=True)
         except urllib.error.HTTPError as e:
             log.error(f'Unable to download URL ({e}): {e.url}')
             time.sleep(10 * 60)
@@ -526,9 +525,9 @@ if __name__ == '__main__':
     if not check_config():
         raise Exception(f'Unable to read config: {config_path}')
     logging_config = json.loads(Path(__file__).with_suffix('.logging.json').read_text())
-    for handler in logging_config['handlers'].values():
+    for handler in logging_config.get('handlers', {}).values():
         if 'filename' in handler:
-            Path(handler['filename']).parent.mkdir(exist_ok = True, parents = True)
+            Path(handler['filename']).parent.mkdir(exist_ok=True, parents=True)
     logging.config.dictConfig(logging_config)
 
     if 'rollbar' in logging_config:
@@ -540,6 +539,6 @@ if __name__ == '__main__':
             handler = rollbar.logger.RollbarHandler(**rollbar_config['handler'])
             log.addHandler(handler)
 
-    log.info(f'Started at: {datetime.now().replace(microsecond = 0)}')
+    log.info(f'Started at: {datetime.now().replace(microsecond=0)}')
     main()
-    log.info(f'Finished at: {datetime.now().replace(microsecond = 0)}')
+    log.info(f'Finished at: {datetime.now().replace(microsecond=0)}')
