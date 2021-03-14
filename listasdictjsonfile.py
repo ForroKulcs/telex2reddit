@@ -1,6 +1,7 @@
 import json
 import jsonfile
 
+
 class ListAsDictJsonText(jsonfile.JsonText):
     def __str__(self):
         json_list = []
@@ -8,7 +9,7 @@ class ListAsDictJsonText(jsonfile.JsonText):
             item = self[item_id]
             item['id'] = item_id
             json_list.append(item)
-        return json.dumps(json_list, ensure_ascii = False, indent = '\t', sort_keys = True)
+        return json.dumps(json_list, ensure_ascii=False, indent='\t', sort_keys=True)
 
     def read_list(self, json_list: list):
         ids = set()
@@ -34,8 +35,10 @@ class ListAsDictJsonText(jsonfile.JsonText):
             raise Exception('JSON list expected')
         self.read_list(json_list)
 
+
 class ListAsDictJsonFile(ListAsDictJsonText, jsonfile.JsonFile):
     pass
+
 
 class ListAsDictJsonGzip(ListAsDictJsonFile, jsonfile.JsonGzip):
     pass

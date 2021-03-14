@@ -3,6 +3,7 @@ import html.parser
 import logging.config
 import re
 
+
 class HungarianParserInfo(dateutil.parser.parserinfo):
     MONTHS = ['január',
               'február',
@@ -16,6 +17,7 @@ class HungarianParserInfo(dateutil.parser.parserinfo):
               'október',
               'november',
               'december']
+
 
 class TelexHTMLParser(html.parser.HTMLParser):
     def __init__(self, log: logging.Logger = None):
@@ -92,7 +94,7 @@ class TelexHTMLParser(html.parser.HTMLParser):
             if date_text == '':
                 return
             try:
-                self.article_date = dateutil.parser.parser(HungarianParserInfo()).parse(date_text, fuzzy = True)
+                self.article_date = dateutil.parser.parser(HungarianParserInfo()).parse(date_text, fuzzy=True)
             except:
                 if self._log:
                     self._log.exception(f'Exception: self.article_date = dateutil.parser.parser(HungarianParserInfo()).parse("{data.strip()}", fuzzy = True)')

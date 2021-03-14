@@ -130,3 +130,11 @@ dmypy.json
 /sample
 /.idea
 /log
+
+# Project ignores
+praw.ini
+/telex2reddit.logging.json
+
+# Changing stuff
+/*.gz
+/*.txt

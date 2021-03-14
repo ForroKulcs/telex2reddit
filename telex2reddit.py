@@ -19,6 +19,7 @@ import urllib.request
 
 log = logging.getLogger()
 
+
 def check_config() -> bool:
     global config
     global config_path
@@ -38,11 +39,13 @@ def check_config() -> bool:
         log.exception('Exception in check_config()')
         return False
 
+
 def get_config() -> configparser.ConfigParser:
     global config
     check_config()
     # noinspection PyTypeChecker
     return config
+
 
 # noinspection PyUnresolvedReferences
 def ensure_category(category: str, category_name: str):
@@ -59,6 +62,7 @@ def ensure_category(category: str, category_name: str):
             log.exception(f'Unable to add new category: {category} ({category_name}): {config_path}')
     if category_name != config['categories'].get(category, ''):
         log.warning(f'Unexpected category name: {category} ({category_name})')
+
 
 def download_content(url: str, useragent: str, telex_urls_skip: set = None, default_encoding: str = 'utf-8') -> str:
     request = urllib.request.Request(url)
@@ -77,8 +81,10 @@ def download_content(url: str, useragent: str, telex_urls_skip: set = None, defa
         charset = default_encoding
     return data.decode(encoding=charset, errors='replace')
 
+
 def datetime2iso8601(value: datetime) -> str:
     return value.isoformat(timespec='minutes' if value.second == 0 else 'seconds')
+
 
 def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_skip: set):
     url = 'https://telex.hu/' + url_path
@@ -137,6 +143,7 @@ def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_sk
 #             else:
 #                 telex_json[url] = {}
 
+
 def connect_reddit(name: str, useragent: str) -> praw.Reddit:
     reddit = praw.Reddit(name, user_agent=useragent)
     redditor = reddit.user.me()
@@ -145,6 +152,7 @@ def connect_reddit(name: str, useragent: str) -> praw.Reddit:
     assert username == name
     return reddit
 
+
 def get_reddit() -> praw.Reddit:
     # noinspection PyShadowingNames
     config = get_config()
@@ -152,8 +160,10 @@ def get_reddit() -> praw.Reddit:
     reddit.validate_on_submit = True
     return reddit
 
+
 def same_objects(a, b):
     return str(a) == str(b)
+
 
 def update_list(path: str, src: list, dest: list):
     if len(src) == 0 and len(dest) == 0:
@@ -210,6 +220,7 @@ def update_list(path: str, src: list, dest: list):
                     dest.pop(i)
                     break
 
+
 def update_item(path: str, src: dict, dest: dict):
     for k, v in src.items():
         if k in dest:
@@ -231,6 +242,7 @@ def update_item(path: str, src: dict, dest: dict):
         if k not in src:
             log.info(f'{path} deleted {k}: {v}')
             dest.pop(k)
+
 
 def check_categories():
     # noinspection PyShadowingNames
@@ -289,6 +301,7 @@ def check_categories():
     if automod_path.read_text(encoding='utf-8') != automoderator_content_md:
         automod_path.write_text(automoderator_content_md, encoding='utf-8')
 
+
 def main():
     check_categories()
 
@@ -309,11 +322,11 @@ def main():
                     raise Exception(f'Invalid contentType: {v}')
                 if ('mainSuperTag' not in v) or (not isinstance(v['mainSuperTag'], dict)):
                     raise Exception(f'Invalid mainSuperTag: {v}')
-                mainSuperTag = v['mainSuperTag']
-                if 'slug' not in mainSuperTag:
+                main_super_tag = v['mainSuperTag']
+                if 'slug' not in main_super_tag:
                     raise Exception(f'No slug in mainSuperTag: {v}')
-                category = mainSuperTag['slug']
-                category_name = mainSuperTag.get('name', '')
+                category = main_super_tag['slug']
+                category_name = main_super_tag.get('name', '')
                 ensure_category(category, category_name)
                 articles_json[int(k)] = v
 
@@ -455,6 +468,7 @@ def main():
                                 raise
                             if eitem.field != 'url':
                                 raise
+                            # subreddit.search()
                             # if eitem.message != 'that link has already been submitted':
                             #     raise
                             log.warning(eitem.error_message)
@@ -517,6 +531,7 @@ def main():
             check_interval /= 5
         log.debug(f'time.sleep({check_interval}) [remaining articles: {remaining_articles}]')
         time.sleep(check_interval)
+
 
 if __name__ == '__main__':
     config = None

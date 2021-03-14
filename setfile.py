@@ -2,6 +2,7 @@ import gzip
 import logging.config
 from pathlib import Path
 
+
 class SetReadFile(set):
     def __init__(self, filename: [Path, str], encoding: str = 'utf-8', log: logging.Logger = None):
         super().__init__()
@@ -41,11 +42,11 @@ class SetReadFile(set):
         return strings
 
     def read(self):
-        with open(self.path, 'rt', encoding = self.encoding) as f:
+        with open(self.path, 'rt', encoding=self.encoding) as f:
             self._read(f)
 
     def read_text(self, text: str):
-        self._read(text.splitlines(), keepends = True)
+        self._read(text.splitlines(), keepends=True)
 
     def try_read(self) -> bool:
         try:
@@ -59,6 +60,7 @@ class SetReadFile(set):
             if self.log:
                 self.log.exception(f'Unable to read: {self.path}')
         return False
+
 
 class SetFile(SetReadFile):
     def try_write(self, create_backup: bool = False, check_for_changes: bool = False) -> bool:
@@ -95,14 +97,14 @@ class SetFile(SetReadFile):
         self._write(text)
 
     def _write(self, text: str):
-        with open(self.path, 'wt', encoding = self.encoding) as f:
+        with open(self.path, 'wt', encoding=self.encoding) as f:
             f.write(text)
 
 class SetGzip(SetFile):
     def read(self):
-        with gzip.open(self.path, 'rt', encoding = self.encoding) as f:
+        with gzip.open(self.path, 'rt', encoding=self.encoding) as f:
             self._read(f)
 
     def _write(self, text: str):
-        with gzip.open(self.path, 'wt', compresslevel = 9, encoding = self.encoding) as f:
+        with gzip.open(self.path, 'wt', compresslevel=9, encoding=self.encoding) as f:
             f.write(text)
