@@ -18,31 +18,27 @@ import urllib.error
 import urllib.request
 
 log = logging.getLogger()
-
-
-def check_config() -> bool:
-    global config
-    global config_path
-    global config_timestamp
-    try:
-        if not config_path.is_file():
-            return False
-        mtime_ns = config_path.stat().st_mtime_ns
-        if config and config_timestamp:
-            if mtime_ns == config_timestamp:
-                return True
-        config_timestamp = mtime_ns
-        config = configparser.ConfigParser(interpolation=None)
-        config.read(config_path, encoding='utf-8')
-        return True
-    except:
-        log.exception('Exception in check_config()')
-        return False
+config = None
+config_path = Path.cwd().parent / '.config' / 'telex2reddit.ini'
+config_timestamp = None
 
 
 def get_config() -> configparser.ConfigParser:
     global config
-    check_config()
+    global config_timestamp
+    global config_path
+
+    if not config_path.is_file():
+        raise Exception(f'Config {config_path} is not a readable file')
+
+    mtime_ns = config_path.stat().st_mtime_ns
+    if config and config_timestamp:
+        if mtime_ns == config_timestamp:
+            return config
+
+    config_timestamp = mtime_ns
+    config = configparser.ConfigParser(interpolation=None)
+    config.read(config_path, encoding='utf-8')
     # noinspection PyTypeChecker
     return config
 
@@ -469,14 +465,8 @@ def main():
 
 
 def init():
-    global config
-    global config_path
-    global config_timestamp
-    config = None
-    config_path = Path.cwd().parent / '.config' / 'telex2reddit.ini'
-    config_timestamp = None
-    if not check_config():
-        raise Exception(f'Unable to read config: {config_path}')
+    get_config()
+
     logging_config = json.loads((Path.cwd().parent / '.config' / 'telex2reddit.logging.json').read_text())
     for handler in logging_config.get('handlers', {}).values():
         if 'filename' in handler:
