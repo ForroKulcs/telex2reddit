@@ -6,6 +6,8 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-VOLUME /srv/data
+VOLUME /srv/.data
+VOLUME /srv/.config
+VOLUME /srv/log
 
 CMD ["python", "./bin/telex2reddit"]
