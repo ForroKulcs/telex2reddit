@@ -3,14 +3,16 @@ import json
 import logging.config
 from pathlib import Path
 
+
 class JsonText(dict):
     def __str__(self):
-        return json.dumps(self, ensure_ascii = False, indent = '\t', sort_keys = True)
+        return json.dumps(self, ensure_ascii=False, indent='\t', sort_keys=True)
 
     def read_text(self, text: str):
         data = json.loads(text)
         self.clear()
         self.update(data)
+
 
 class JsonFile(JsonText):
     def __init__(self, filename: [Path, str], encoding: str = 'utf-8', log: logging.Logger = None):
@@ -35,7 +37,7 @@ class JsonFile(JsonText):
         return self._path
 
     def _read(self):
-        with open(self.path, 'rt', encoding = self.encoding) as f:
+        with open(self.path, 'rt', encoding=self.encoding) as f:
             return f.read()
 
     def read(self):
@@ -55,7 +57,7 @@ class JsonFile(JsonText):
         return False
 
     def _write(self, text: str):
-        with open(self.path, 'wt', encoding = self.encoding) as f:
+        with open(self.path, 'wt', encoding=self.encoding) as f:
             f.write(text)
 
     def try_write(self, create_backup: bool = False, check_for_changes: bool = False) -> bool:
@@ -90,11 +92,12 @@ class JsonFile(JsonText):
                         self.log.exception(f'Unable to replace backup: {backup_path}')
         self._write(text)
 
+
 class JsonGzip(JsonFile):
     def _read(self):
-        with gzip.open(self.path, 'rt', encoding = self.encoding) as f:
+        with gzip.open(self.path, 'rt', encoding=self.encoding) as f:
             return f.read()
 
     def _write(self, text: str):
-        with gzip.open(self.path, 'wt', compresslevel = 9, encoding = self.encoding) as f:
+        with gzip.open(self.path, 'wt', compresslevel=9, encoding=self.encoding) as f:
             f.write(text)

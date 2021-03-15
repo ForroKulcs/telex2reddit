@@ -72,7 +72,7 @@
 			"filters": [
 				"debug_level_filter"
 			],
-			"formatter": "white_formatter"
+			"formatter": "grey_formatter"
 		},
 		"colored_info_handler": {
 			"class": "logging.StreamHandler",
@@ -80,7 +80,7 @@
 			"filters": [
 				"info_level_filter"
 			],
-			"formatter": "grey_formatter"
+			"formatter": "white_formatter"
 		},
 		"colored_warning_handler": {
 			"class": "logging.StreamHandler",
