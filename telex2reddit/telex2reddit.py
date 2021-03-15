@@ -466,13 +466,20 @@ def main():
 
 def init():
     get_config()
+    logging_config = init_logging()
+    init_rollbar(logging_config)
 
+
+def init_logging():
     logging_config = json.loads((Path.cwd().parent / '.config' / 'telex2reddit.logging.json').read_text())
     for handler in logging_config.get('handlers', {}).values():
         if 'filename' in handler:
             Path(handler['filename']).parent.mkdir(exist_ok=True, parents=True)
     logging.config.dictConfig(logging_config)
+    return logging_config
 
+
+def init_rollbar(logging_config):
     if 'rollbar' in logging_config:
         rollbar_config = logging_config['rollbar']
         if isinstance(rollbar_config, dict) and rollbar_config.get('enabled', False):
