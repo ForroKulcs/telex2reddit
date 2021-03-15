@@ -127,22 +127,6 @@ def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_sk
         if url not in telex_json:
             telex_json[url] = {}
 
-# def collect_links(content: str, telex_json: dict, telex_urls: set, in_english: bool = False):
-#     html_parser = TelexHTMLParser(log)
-#     html_parser.feed(content)
-#     links = html_parser.links
-#     counter = 0
-#     for link in links:
-#         url = link.strip()
-#         telex_urls.add(url)
-#         if url not in telex_json:
-#             counter += 1
-#             log.debug(f'{counter}. new article: {url}')
-#             if in_english:
-#                 telex_json[url] = {'english': True}
-#             else:
-#                 telex_json[url] = {}
-
 
 def connect_reddit(name: str, useragent: str) -> praw.Reddit:
     reddit = praw.Reddit(name, user_agent=useragent)
@@ -311,7 +295,6 @@ def main():
     articles_json = ListAsDictJsonGzip(Path.cwd().parent / '.data' / 'articles.json.gz', log=log)
     telex_urls = SetFile(Path.cwd().parent / '.data' / 'telex.urls.txt', log=log)
     telex_urls_skip = SetFile(Path.cwd().parent / '.data' / 'telex.urls.skip.txt', log=log)
-    # telex_json = JsonGzip(Path.cwd().parent / '.data' / 'telex.json.gz', log=log)
     telex2_json = JsonGzip(Path.cwd().parent / '.data' / 'telex2.json.gz', log=log)
     while True:
         try:
@@ -332,17 +315,9 @@ def main():
                 ensure_category(category, category_name)
                 articles_json[int(k)] = v
 
-            # telex_json.read()
             telex2_json.read()
 
             try:
-                '''
-                for file in Path('sample').glob('*.html'):
-                    log.info(f'read_sample: {file}')
-                    content = file.read_text(encoding = 'utf-8')
-                    collect_links(content, telex_json, telex_urls)
-                '''
-
                 # noinspection PyShadowingNames
                 config = get_config()
                 telex_config = config['telex']
@@ -377,37 +352,6 @@ def main():
                         break
                     page += 1
 
-                '''
-                for k, v in config['collect_links'].items():
-                    if v != '':
-                        time.sleep(5)
-                        log.info(f'read_{k}: {v}')
-                        content = download_content(v, useragent)
-                        collect_links(content, telex_json, telex_urls, k == 'english')
-                new_urls = set()
-                for url in telex_urls:
-                    if url not in telex_json:
-                        new_urls.add(url)
-                for k, v in telex_json.items():
-                    if 'parse_date' in v:
-                        continue
-                    new_urls.add(k)
-                for url in new_urls:
-                    if '.' in url:
-                        log.warning(f'URL contains dot: {url}')
-                        continue
-                    if url.find('/') <= 0:
-                        log.warning(f'Unexpected URL: {url}')
-                    else:
-                        category = url[0:url.index('/')]
-                        if category not in config['categories']:
-                            log.warning(f'Unexpected category: {url}')
-                    if 'https://telex.hu/' + url in telex_urls_skip:
-                        continue
-                    time.sleep(1)
-                    read_article(url, telex_json, telex_urls, telex_urls_skip)
-                '''
-
                 for k, v in articles_json.items():
                     if v['contentType'] != 'article':
                         log.warning(f'contentType ({v["contentType"]}) not article: {k}')
@@ -431,13 +375,10 @@ def main():
                     telex2_json[url_path]['date_dir'] = pubDate.strftime('%Y/%m/%d')
                     if v['english']:
                         telex2_json[url_path]['english'] = True
-                    # telex2_json[url_path]['parse_date'] = datetime2iso8601(datetime.utcnow()) + 'Z'
 
                 oldest_url = None
                 remaining_articles = 0
                 for k, v in telex2_json.items():
-                    # if 'https://telex.hu/' + k in telex_urls_skip:
-                    #    continue
                     if 'reddit_date' in v:
                         continue
                     if 'article_date' not in v:
@@ -470,9 +411,6 @@ def main():
                                 raise
                             if eitem.field != 'url':
                                 raise
-                            # subreddit.search()
-                            # if eitem.message != 'that link has already been submitted':
-                            #     raise
                             log.warning(eitem.error_message)
                     telex2_json[oldest_url]['reddit_date'] = utc_time_str
                     telex2_json[oldest_url]['reddit_url'] = '' if submission is None else submission.permalink
@@ -505,20 +443,15 @@ def main():
                                         raise
                                     if eitem.field != 'url':
                                         raise
-                                    # if eitem.message != 'that link has already been submitted':
-                                    #     raise
                                     log.warning(eitem.error_message)
             finally:
                 if '' in telex_urls:
                     telex_urls.remove('')
-                # telex_urls.write(create_backup=True, check_for_changes=True)
 
                 if '' in telex_urls_skip:
                     telex_urls_skip.remove('')
-                # telex_urls_skip.write(create_backup=True, check_for_changes=True)
 
                 articles_json.write(create_backup=True, check_for_changes=True)
-                # telex_json.write(create_backup=True, check_for_changes=True)
                 telex2_json.write(create_backup=True, check_for_changes=True)
         except urllib.error.HTTPError as e:
             log.error(f'Unable to download URL ({e}): {e.url}')

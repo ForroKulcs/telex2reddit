@@ -100,6 +100,7 @@ class SetFile(SetReadFile):
         with open(self.path, 'wt', encoding=self.encoding) as f:
             f.write(text)
 
+
 class SetGzip(SetFile):
     def read(self):
         with gzip.open(self.path, 'rt', encoding=self.encoding) as f:
