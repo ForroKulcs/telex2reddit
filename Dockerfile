@@ -1,10 +1,11 @@
-FROM python:3.9
+FROM python:3.9-alpine
 
 WORKDIR /srv
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-VOLUME /srv
+COPY . .
+VOLUME /srv/data
 
-CMD ["python", "./telex2reddit.py"]
+CMD ["python", "./bin/telex2reddit"]

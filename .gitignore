@@ -136,5 +136,7 @@ praw.ini
 /telex2reddit.logging.json
 
 # Changing stuff
-/*.gz
-/*.txt
+/.data/*
+!/.data/.gitkeep
+/log/*
+!/log/.gitkeep
