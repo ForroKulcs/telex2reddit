@@ -1,6 +1,5 @@
 import configparser
 from datetime import datetime
-import gzip
 import json
 from .jsonfile import JsonGzip
 from .listasdictjsonfile import ListAsDictJsonGzip, ListAsDictJsonText
@@ -10,9 +9,7 @@ import praw
 import praw.exceptions
 import prawcore.exceptions
 import re
-from .setfile import SetFile
 import ssl
-from .telexhtmlparser import TelexHTMLParser
 import time
 import urllib.error
 import urllib.request
@@ -60,7 +57,7 @@ def ensure_category(category: str, category_name: str):
         log.warning(f'Unexpected category name: {category} ({category_name})')
 
 
-def download_content(url: str, useragent: str, telex_urls_skip: set = None, default_encoding: str = 'utf-8') -> str:
+def download_content(url: str, useragent: str, default_encoding: str = 'utf-8') -> str:
     request = urllib.request.Request(url)
     request.add_header('User-Agent', useragent)
     response = urllib.request.urlopen(request, context=ssl.SSLContext())
@@ -68,8 +65,6 @@ def download_content(url: str, useragent: str, telex_urls_skip: set = None, defa
     response_url = response.url
     if response_url != url:
         log.warning(f'URL changed from {url} to {response_url}')
-        if telex_urls_skip:
-            telex_urls_skip.add(url)
     if b'\x00' in data:
         raise Exception(f'Content is not text: {response_url}')
     charset = response.headers.get_content_charset()
@@ -80,48 +75,6 @@ def download_content(url: str, useragent: str, telex_urls_skip: set = None, defa
 
 def datetime2iso8601(value: datetime) -> str:
     return value.isoformat(timespec='minutes' if value.second == 0 else 'seconds')
-
-
-def read_article(url_path: str, telex_json: dict, telex_urls: set, telex_urls_skip: set):
-    url = 'https://telex.hu/' + url_path
-    log.info(f'read_article: {url}')
-    telex_config = get_config()['telex']
-    content = ''
-    use_article_cache = telex_config.getboolean('use_article_cache')
-    if use_article_cache:
-        telex_path = Path('log').joinpath('telex.hu')
-        telex_path.joinpath(url_path).with_suffix('.html').unlink(missing_ok=True)
-        article_path = telex_path.joinpath(url_path).with_suffix('.gz')
-        if article_path.exists():
-            article_cache_valid_time = telex_config.getfloat('article_cache_valid_time')
-            if datetime.utcnow().timestamp() < article_path.stat().st_mtime + article_cache_valid_time:
-                with gzip.open(article_path, 'rt', encoding='utf-8') as f:
-                    content = f.read()
-    if content == '':
-        content = download_content(url, telex_config['useragent'], telex_urls_skip)
-    if use_article_cache:
-        # noinspection PyUnboundLocalVariable
-        article_path.parent.mkdir(exist_ok=True, parents=True)
-        with gzip.open(article_path, 'wt', compresslevel=9, encoding='utf-8') as f:
-            f.write(content)
-    html_parser = TelexHTMLParser(log)
-    html_parser.feed(content)
-    article_date = html_parser.article_date
-    assert article_date is not None
-    article_title = html_parser.article_title
-    assert article_title is not None
-    if url_path not in telex_json:
-        telex_json[url_path] = {}
-    telex_json[url_path]['article_date'] = datetime2iso8601(article_date)
-    telex_json[url_path]['article_title'] = html_parser.article_title
-    telex_json[url_path]['category'] = None if url_path.find('/') <= 0 else url_path[0:url_path.index('/')]
-    telex_json[url_path]['parse_date'] = datetime2iso8601(datetime.utcnow()) + 'Z'
-    links = html_parser.links
-    for link in links:
-        url = link.strip()
-        telex_urls.add(url)
-        if url not in telex_json:
-            telex_json[url] = {}
 
 
 def connect_reddit(name: str, useragent: str) -> praw.Reddit:
@@ -252,11 +205,11 @@ def check_categories():
         revision_author = revision['author']
         if revision_author != config['reddit']['script_author']:
             raise Exception(f'Unexpected automoderator author: {revision_author}')
-    pattern = re.compile(r'---\s+url: \["telex.hu/([\w-]+)/"]\s+action:\s*approve\s+set_flair:\s+template_id:\s*([\da-f-]+)\s*')
+    pattern = r'---\s+url: \["telex.hu/([\w-]+)/"]\s+action:\s*approve\s+set_flair:\s+template_id:\s*([\da-f-]+)\s*'
     last_pos = 0
     automod_flairs = {}
     automoderator_content_md = automoderator.content_md
-    for match in pattern.finditer(automoderator_content_md):
+    for match in re.compile(pattern).finditer(automoderator_content_md):
         if last_pos != match.start():
             raise Exception(f'Unexpected position of match: {match}')
         last_pos = match.end()
@@ -289,14 +242,9 @@ def main():
 
     remaining_articles = 0
     articles_json = ListAsDictJsonGzip(Path.cwd().parent / '.data' / 'articles.json.gz', log=log)
-    telex_urls = SetFile(Path.cwd().parent / '.data' / 'telex.urls.txt', log=log)
-    telex_urls_skip = SetFile(Path.cwd().parent / '.data' / 'telex.urls.skip.txt', log=log)
     telex2_json = JsonGzip(Path.cwd().parent / '.data' / 'telex2.json.gz', log=log)
     while True:
         try:
-            telex_urls.read()
-            telex_urls_skip.read()
-
             articles_json.read()
             for k, v in articles_json.items():
                 if ('contentType' not in v) or (v['contentType'] != 'article'):
@@ -312,6 +260,7 @@ def main():
                 articles_json[int(k)] = v
 
             telex2_json.read()
+            telex2_json.pop('operahaz-szakszervezet-probak-leallitasa-koronavirus-okovacs-szilveszte', None)
 
             try:
                 # noinspection PyShadowingNames
@@ -358,56 +307,67 @@ def main():
                     if not v['active']:
                         log.warning(f'not active: {k}')
                         continue
-                    pubDate = datetime.utcfromtimestamp(v['pubDate'])
+                    article_date = datetime.utcfromtimestamp(v['pubDate'])
                     url_path = v['slug']
                     if not re.fullmatch(r'[\w-]+', url_path):
                         log.error(url_path)
                     if url_path not in telex2_json:
-                        log.info(f'new article: {url_path}')
+                        log.info(f'New article: {url_path}')
                         telex2_json[url_path] = {}
-                    telex2_json[url_path]['article_date'] = datetime2iso8601(pubDate) + 'Z'
+                    telex2_json[url_path]['article_date'] = datetime2iso8601(article_date) + 'Z'
                     telex2_json[url_path]['article_title'] = v['title']
                     telex2_json[url_path]['category'] = v['mainSuperTag']['slug']
-                    telex2_json[url_path]['date_dir'] = pubDate.strftime('%Y/%m/%d')
+                    telex2_json[url_path]['date_dir'] = article_date.strftime('%Y/%m/%d')
                     if v['english']:
                         telex2_json[url_path]['english'] = True
 
                 oldest_url = None
                 remaining_articles = 0
                 for k, v in telex2_json.items():
-                    if 'reddit_date' in v:
+                    # if 'parse_date' in v:
+                    #     v.pop('parse_date')
+                    if v.get('reddit_date', None) not in [None, '']:
                         continue
-                    if 'article_date' not in v:
+                    article_date = v.get('article_date', None)
+                    if article_date in [None, '']:
+                        log.warning('No article_date: ' + str(v))
                         continue
                     remaining_articles += 1
-                    if (oldest_url is None) or (telex2_json[k]['article_date'] < telex2_json[oldest_url]['article_date']):
+                    if (oldest_url is None) or (article_date < telex2_json[oldest_url]['article_date']):
                         oldest_url = k
                 if oldest_url:
                     oldest = telex2_json[oldest_url]
-                    full_url = 'https://telex.hu/' + oldest['category'] + '/' + oldest['date_dir'] + '/' + oldest_url.strip('/')
-                    log.info(f'submit: {full_url}')
                     article_title = oldest.get('article_title', '').strip()
-                    assert article_title != '', f'No article_title: {oldest_url}'
+                    if article_title == '':
+                        raise Exception(f'No article_title: {oldest_url}')
+                    full_url = 'https://telex.hu/' + oldest['category'] + '/' + oldest['date_dir'] + '/' + oldest_url
+                    log.info(f'Submit: {full_url}')
                     reddit = get_reddit()
                     subreddit = reddit.subreddit(config['reddit']['subreddit'])
-                    utc_time_str = datetime2iso8601(datetime.utcnow()) + 'Z'
+                    utc_time_str = ''
                     submission = None
-                    try:
-                        submission = subreddit.submit(
-                            title=article_title,
-                            selftext=None,
-                            url=full_url,
-                            flair_id=None,
-                            flair_text=None,
-                            resubmit=False,
-                            send_replies=False)
-                    except praw.exceptions.RedditAPIException as e:
-                        for eitem in e.items:
-                            if eitem.error_type != 'ALREADY_SUB':
-                                raise
-                            if eitem.field != 'url':
-                                raise
-                            log.warning(eitem.error_message)
+                    for old_submission in subreddit.search('url:' + full_url, sort='new', limit=1):
+                        submission = old_submission
+                        log.info(f'Submission already posted: {submission.permalink}')
+                    if submission is None:
+                        try:
+                            submission = subreddit.submit(
+                                title=article_title,
+                                selftext=None,
+                                url=full_url,
+                                flair_id=None,
+                                flair_text=None,
+                                resubmit=False,
+                                send_replies=False)
+                        except praw.exceptions.RedditAPIException as e:
+                            for eitem in e.items:
+                                if eitem.error_type != 'ALREADY_SUB':
+                                    raise
+                                if eitem.field != 'url':
+                                    raise
+                                log.warning(eitem.error_message)
+                    if submission:
+                        utc_time_str = datetime2iso8601(datetime.fromtimestamp(submission.created_utc)) + 'Z'
                     telex2_json[oldest_url]['reddit_date'] = utc_time_str
                     telex2_json[oldest_url]['reddit_url'] = '' if submission is None else submission.permalink
                     remaining_articles -= 1
@@ -415,38 +375,42 @@ def main():
                         if ('english' in telex2_json[oldest_url]) and (telex2_json[oldest_url]['english']):
                             collection = subreddit.collections(config['reddit']['english_collection_id'])
                             reddit_url = 'https://reddit.com' + submission.permalink
-                            log.info(f'add new english post to collection: {reddit_url}')
-                            collection.mod.add_post(reddit_url)
-
+                            log.info(f'Add new english post to collection: {reddit_url}')
+                            try:
+                                collection.mod.add_post(reddit_url)
+                            except praw.exceptions.RedditAPIException as e:
+                                for eitem in e.items:
+                                    log.error(eitem.error_message)
                             if 'telex' in article_title.lower():
                                 log.warning(f'Telex in title: {article_title}')
                             subreddit_english = config['reddit']['subreddit_english']
-                            log.info(f'submit to {subreddit_english}: {full_url}')
+                            log.info(f'Submit to {subreddit_english}: {full_url}')
                             subreddit_english = reddit.subreddit(subreddit_english)
-                            try:
-                                submission = subreddit_english.submit(
-                                    title=article_title,
-                                    selftext=None,
-                                    url=full_url,
-                                    flair_id=None,
-                                    flair_text=None,
-                                    resubmit=False,
-                                    send_replies=False)
+                            submission = None
+                            for old_submission in subreddit_english.search('url:' + full_url, sort='new', limit=1):
+                                submission = old_submission
+                                log.info(f'Submission already posted: {submission.permalink}')
+                            if submission is None:
+                                try:
+                                    submission = subreddit_english.submit(
+                                        title=article_title,
+                                        selftext=None,
+                                        url=full_url,
+                                        flair_id=None,
+                                        flair_text=None,
+                                        resubmit=False,
+                                        send_replies=False)
+
+                                except praw.exceptions.RedditAPIException as e:
+                                    for eitem in e.items:
+                                        if eitem.error_type != 'ALREADY_SUB':
+                                            raise
+                                        if eitem.field != 'url':
+                                            raise
+                                        log.warning(eitem.error_message)
+                            if submission:
                                 telex2_json[oldest_url]['reddit_english_url'] = submission.permalink
-                            except praw.exceptions.RedditAPIException as e:
-                                for eitem in e.items:
-                                    if eitem.error_type != 'ALREADY_SUB':
-                                        raise
-                                    if eitem.field != 'url':
-                                        raise
-                                    log.warning(eitem.error_message)
             finally:
-                if '' in telex_urls:
-                    telex_urls.remove('')
-
-                if '' in telex_urls_skip:
-                    telex_urls_skip.remove('')
-
                 articles_json.write(create_backup=True, check_for_changes=True)
                 telex2_json.write(create_backup=True, check_for_changes=True)
         except urllib.error.HTTPError as e:
