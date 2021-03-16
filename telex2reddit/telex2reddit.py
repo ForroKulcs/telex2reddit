@@ -16,7 +16,7 @@ import urllib.request
 
 log = logging.getLogger()
 config = None
-config_path = Path.cwd().parent / '.config' / 'telex2reddit.ini'
+config_path = Path(__file__).parent.parent / '.config' / 'telex2reddit.ini'
 config_timestamp = None
 
 
@@ -230,7 +230,7 @@ def check_categories():
     for flair_class in automod_flairs:
         if flair_class not in flair_classes:
             raise Exception(f'Automoderator flair unexpected: {flair_class}')
-    automod_path = Path.cwd().parent / '.config' / 'automod.txt'
+    automod_path = Path(__file__).parent.parent / '.config' / 'automod.txt'
     if automod_path.read_text(encoding='utf-8') != automoderator_content_md:
         automod_path.write_text(automoderator_content_md, encoding='utf-8')
 
@@ -241,8 +241,8 @@ def main():
     check_categories()
 
     remaining_articles = 0
-    articles_json = ListAsDictJsonGzip(Path.cwd().parent / '.data' / 'articles.json.gz', log=log)
-    telex2_json = JsonGzip(Path.cwd().parent / '.data' / 'telex2.json.gz', log=log)
+    articles_json = ListAsDictJsonGzip(Path(__file__).parent.parent / '.data' / 'articles.json.gz', log=log)
+    telex2_json = JsonGzip(Path(__file__).parent.parent / '.data' / 'telex2.json.gz', log=log)
     while True:
         try:
             articles_json.read()
@@ -275,7 +275,7 @@ def main():
                     telex_api_url = telex_config['api_url'] + f'?perPage={articles_per_page}&page={page}'
                     log.debug(f'API: {telex_api_url}')
                     content = download_content(telex_api_url, useragent)
-                    Path(Path.cwd().parent / '.data' / 'articles.api.json').write_text(content, encoding='utf-8')
+                    Path(Path(__file__).parent.parent / '.data' / 'articles.api.json').write_text(content, encoding='utf-8')
                     json_data = json.loads(content)
                     if isinstance(json_data, list):
                         articles.read_list(json_data)
@@ -435,7 +435,7 @@ def init():
 
 
 def init_logging():
-    logging_config = json.loads((Path.cwd().parent / '.config' / 'telex2reddit.logging.json').read_text())
+    logging_config = json.loads((Path(__file__).parent.parent / '.config' / 'telex2reddit.logging.json').read_text())
     for handler in logging_config.get('handlers', {}).values():
         if 'filename' in handler:
             Path(handler['filename']).parent.mkdir(exist_ok=True, parents=True)
