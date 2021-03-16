@@ -262,7 +262,6 @@ def main():
                 articles_json[int(k)] = v
 
             telex2_json.read()
-            telex2_json.pop('operahaz-szakszervezet-probak-leallitasa-koronavirus-okovacs-szilveszte', None)
 
             try:
                 # noinspection PyShadowingNames
@@ -326,8 +325,8 @@ def main():
                 oldest_url = None
                 remaining_articles = 0
                 for k, v in telex2_json.items():
-                    # if 'parse_date' in v:
-                    #     v.pop('parse_date')
+                    if 'parse_date' in v:
+                        v.pop('parse_date')
                     if v.get('reddit_date', None) not in [None, '']:
                         continue
                     article_date = v.get('article_date', None)
@@ -384,7 +383,7 @@ def main():
                                 for eitem in e.items:
                                     log.error(eitem.error_message)
                             if 'telex' in article_title.lower():
-                                log.warning(f'Telex in title: {article_title}')
+                                log.warning(f'Telex in title (internal post?): {article_title}')
                             subreddit_english = config['reddit']['subreddit_english']
                             log.info(f'Submit to {subreddit_english}: {full_url}')
                             subreddit_english = reddit.subreddit(subreddit_english)
@@ -402,7 +401,6 @@ def main():
                                         flair_text=None,
                                         resubmit=False,
                                         send_replies=False)
-
                                 except praw.exceptions.RedditAPIException as e:
                                     for eitem in e.items:
                                         if eitem.error_type != 'ALREADY_SUB':
