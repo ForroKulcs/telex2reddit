@@ -230,9 +230,6 @@ def check_categories():
     for flair_class in automod_flairs:
         if flair_class not in flair_classes:
             raise Exception(f'Automoderator flair unexpected: {flair_class}')
-    automod_path = Path(__file__).parent.parent / '.config' / 'automod.txt'
-    if automod_path.read_text(encoding='utf-8') != automoderator_content_md:
-        automod_path.write_text(automoderator_content_md, encoding='utf-8')
 
 
 def main():
