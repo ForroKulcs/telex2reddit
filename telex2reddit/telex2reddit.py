@@ -431,7 +431,7 @@ def main():
 def init():
     get_config()
     logging_config = init_logging()
-    init_rollbar(logging_config)
+    return init_rollbar(logging_config)
 
 
 def init_logging():
@@ -452,3 +452,6 @@ def init_rollbar(logging_config):
             rollbar.SETTINGS['allow_logging_basic_config'] = False
             handler = rollbar.logger.RollbarHandler(**rollbar_config['handler'])
             log.addHandler(handler)
+            return rollbar
+
+    return None

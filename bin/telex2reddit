@@ -3,5 +3,9 @@
 import telex2reddit
 
 if __name__ == '__main__':
-    telex2reddit.init()
-    telex2reddit.main()
+    rollbar = telex2reddit.init()
+
+    try:
+        telex2reddit.main()
+    except:
+        rollbar.report_exc_info()
