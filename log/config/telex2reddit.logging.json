@@ -1,5 +1,6 @@
 {
 	"version": 1,
+	"disable_existing_loggers": true,
 	"filters": {
 		"notset_level_filter": {
 			"()": "levelfilter.NotsetLevelFilter"
@@ -110,7 +111,7 @@
 			"backupCount": 30,
 			"class": "logging.handlers.TimedRotatingFileHandler",
 			"encoding": "utf-8",
-			"filename": "log\\info\\info.txt",
+			"filename": "log/info/info.txt",
 			"formatter": "complex",
 			"level": "INFO",
 			"when": "midnight"
@@ -119,7 +120,7 @@
 			"backupCount": 52,
 			"class": "logging.handlers.TimedRotatingFileHandler",
 			"encoding": "utf-8",
-			"filename": "log\\error\\error.txt",
+			"filename": "log/error/error.txt",
 			"formatter": "complex",
 			"level": "ERROR",
 			"when": "W0"
@@ -138,14 +139,6 @@
 				"file_error"
 			],
 			"level": 0
-		}
-	},
-	"rollbar": {
-		"enabled": true,
-		"handler": {
-			"access_token": "",
-			"environment": "production",
-			"level": "WARNING"
 		}
 	}
 }

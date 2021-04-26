@@ -98,3 +98,9 @@
     action: approve
     set_flair:
         template_id: e393d6a4-05bb-11eb-ae41-0ef7460881f7
+---
+    url: ["telex.hu/zacc/"]
+    action: approve
+    set_flair:
+        template_id: 99edb60c-9a10-11eb-a1e3-0e431e3729d7
+

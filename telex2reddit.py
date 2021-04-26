@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 from jsonfile import JsonGzip
 from listasdictjsonfile import ListAsDictJsonGzip, ListAsDictJsonText
+import log_config
 import logging.config
 from pathlib import Path
 import praw
@@ -173,12 +174,15 @@ def update_item(path: str, src: dict, dest: dict):
         else:
             log.info(f'{path} added {k}: {v}')
             dest[k] = v
-    for k, v in dest.items():
+    delete_ids = set()
+    for k in dest:
         if k == 'id':
             continue
         if k not in src:
-            log.info(f'{path} deleted {k}: {v}')
-            dest.pop(k)
+            delete_ids.add(k)
+    for k in delete_ids:
+        log.info(f'{path} deleted {k}: {dest[k]}')
+        dest.pop(k)
 
 
 def check_categories():
@@ -249,13 +253,15 @@ def main():
         try:
             articles_json.read()
             for k, v in articles_json.items():
-                if ('contentType' not in v) or (v['contentType'] != 'article'):
-                    raise Exception(f'Invalid contentType: {v}')
+                if ('contentType' in v) and (v['contentType'] != 'article'):
+                    raise Exception(f'Unexpected contentType: {v}')
                 if ('mainSuperTag' not in v) or (not isinstance(v['mainSuperTag'], dict)):
                     raise Exception(f'Invalid mainSuperTag: {v}')
                 main_super_tag = v['mainSuperTag']
                 if 'slug' not in main_super_tag:
                     raise Exception(f'No slug in mainSuperTag: {v}')
+                if 'facebookEngagement' in v:
+                    v.pop('facebookEngagement')
                 category = main_super_tag['slug']
                 category_name = main_super_tag.get('name', '')
                 ensure_category(category, category_name)
@@ -287,6 +293,8 @@ def main():
                             raise Exception(f'Unexpected JSON structure')
                     new_article = False
                     for k, v in articles.items():
+                        if 'facebookEngagement' in v:
+                            v.pop('facebookEngagement')
                         if k in articles_json:
                             update_item(str(k), v, articles_json[k])
                         else:
@@ -299,9 +307,6 @@ def main():
                     page += 1
 
                 for k, v in articles_json.items():
-                    if v['contentType'] != 'article':
-                        log.warning(f'contentType ({v["contentType"]}) not article: {k}')
-                        continue
                     if v['type'] != 'article':
                         if v['type'] != 'liveblog':
                             log.warning(f'type ({v["type"]}) not article: {k}')
@@ -322,21 +327,24 @@ def main():
                     if v['english']:
                         telex2_json[url_path]['english'] = True
 
-                oldest_url = None
-                remaining_articles = 0
-                for k, v in telex2_json.items():
-                    if 'parse_date' in v:
-                        v.pop('parse_date')
-                    if v.get('reddit_date', None) not in [None, '']:
-                        continue
-                    article_date = v.get('article_date', None)
-                    if article_date in [None, '']:
-                        log.warning('No article_date: ' + str(v))
-                        continue
-                    remaining_articles += 1
-                    if (oldest_url is None) or (article_date < telex2_json[oldest_url]['article_date']):
-                        oldest_url = k
-                if oldest_url:
+                submissions_already_posted = 0
+                while submissions_already_posted < 25:
+                    oldest_url = None
+                    remaining_articles = 0
+                    for k, v in telex2_json.items():
+                        if 'parse_date' in v:
+                            v.pop('parse_date')
+                        if v.get('reddit_date', None) not in [None, '']:
+                            continue
+                        article_date = v.get('article_date', None)
+                        if article_date in [None, '']:
+                            log.warning('No article_date: ' + str(v))
+                            continue
+                        remaining_articles += 1
+                        if (oldest_url is None) or (article_date < telex2_json[oldest_url]['article_date']):
+                            oldest_url = k
+                    if oldest_url is None:
+                        break
                     oldest = telex2_json[oldest_url]
                     article_title = oldest.get('article_title', '').strip()
                     if article_title == '':
@@ -347,7 +355,9 @@ def main():
                     subreddit = reddit.subreddit(config['reddit']['subreddit'])
                     utc_time_str = ''
                     submission = None
+                    submission_already_posted = False
                     for old_submission in subreddit.search('url:' + full_url, sort='new', limit=1):
+                        submission_already_posted = True
                         submission = old_submission
                         log.info(f'Submission already posted: {submission.permalink}')
                     if submission is None:
@@ -367,6 +377,10 @@ def main():
                                 if eitem.field != 'url':
                                     raise
                                 log.warning(eitem.error_message)
+                                submission_already_posted = True
+                                utc_time_str = datetime2iso8601(datetime.now())
+                    if submission_already_posted:
+                        submissions_already_posted += 1
                     if submission:
                         utc_time_str = datetime2iso8601(datetime.fromtimestamp(submission.created_utc)) + 'Z'
                     telex2_json[oldest_url]['reddit_date'] = utc_time_str
@@ -410,6 +424,8 @@ def main():
                                         log.warning(eitem.error_message)
                             if submission:
                                 telex2_json[oldest_url]['reddit_english_url'] = submission.permalink
+                    if not submission_already_posted:
+                        break
             finally:
                 articles_json.write(create_backup=True, check_for_changes=True)
                 telex2_json.write(create_backup=True, check_for_changes=True)
@@ -434,20 +450,9 @@ if __name__ == '__main__':
     config_timestamp = None
     if not check_config():
         raise Exception(f'Unable to read config: {config_path}')
-    logging_config = json.loads(Path(__file__).with_suffix('.logging.json').read_text())
-    for handler in logging_config.get('handlers', {}).values():
-        if 'filename' in handler:
-            Path(handler['filename']).parent.mkdir(exist_ok=True, parents=True)
-    logging.config.dictConfig(logging_config)
-
-    if 'rollbar' in logging_config:
-        rollbar_config = logging_config['rollbar']
-        if isinstance(rollbar_config, dict) and rollbar_config.get('enabled', False):
-            import rollbar
-            import rollbar.logger
-            rollbar.SETTINGS['allow_logging_basic_config'] = False
-            handler = rollbar.logger.RollbarHandler(**rollbar_config['handler'])
-            log.addHandler(handler)
+    log_path = Path('log')
+    log_config_path = log_path.joinpath('config')
+    log_config.load_log_config(log_config_path, log_config_path.joinpath('handler'))
 
     log.info(f'Started at: {datetime.now().replace(microsecond=0)}')
     main()
