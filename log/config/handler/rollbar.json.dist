@@ -1,0 +1,9 @@
+{
+	"enabled": true,
+	"handler": {
+		"access_token": "",
+		"environment": "production",
+		"level": "WARNING",
+		"history_level": "DEBUG"
+	}
+}

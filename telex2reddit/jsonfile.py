@@ -57,7 +57,7 @@ class JsonFile(JsonText):
         return False
 
     def _write(self, text: str):
-        with open(self.path, 'wt', encoding=self.encoding) as f:
+        with open(self.path, 'wt', encoding=self.encoding, newline='\n') as f:
             f.write(text)
 
     def try_write(self, create_backup: bool = False, check_for_changes: bool = False) -> bool:
@@ -99,5 +99,5 @@ class JsonGzip(JsonFile):
             return f.read()
 
     def _write(self, text: str):
-        with gzip.open(self.path, 'wt', compresslevel=9, encoding=self.encoding) as f:
+        with gzip.open(self.path, 'wt', compresslevel=9, encoding=self.encoding, newline='\n') as f:
             f.write(text)

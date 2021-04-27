@@ -97,7 +97,7 @@ class SetFile(SetReadFile):
         self._write(text)
 
     def _write(self, text: str):
-        with open(self.path, 'wt', encoding=self.encoding) as f:
+        with open(self.path, 'wt', encoding=self.encoding, newline='\n') as f:
             f.write(text)
 
 
@@ -107,5 +107,5 @@ class SetGzip(SetFile):
             self._read(f)
 
     def _write(self, text: str):
-        with gzip.open(self.path, 'wt', compresslevel=9, encoding=self.encoding) as f:
+        with gzip.open(self.path, 'wt', compresslevel=9, encoding=self.encoding, newline='\n') as f:
             f.write(text)

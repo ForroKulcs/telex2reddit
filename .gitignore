@@ -140,3 +140,4 @@ praw.ini
 !/.data/.gitkeep
 /log/*
 !/log/.gitkeep
+!/log/config/handler/rollbar.json.dist
