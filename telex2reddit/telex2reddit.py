@@ -5,6 +5,7 @@ from .jsonfile import JsonGzip
 from .listasdictjsonfile import ListAsDictJsonGzip, ListAsDictJsonText
 from . import log_config
 import logging.config
+import os
 from pathlib import Path
 import praw
 import praw.exceptions
@@ -15,7 +16,7 @@ import time
 import urllib.error
 import urllib.request
 
-log = logging.getLogger()
+log = None
 config = None
 config_path = Path(__file__).parent.parent / '.config' / 'telex2reddit.ini'
 config_timestamp = None
@@ -440,7 +441,21 @@ def main():
 
 
 def init():
+    global log
+    log = init_logging()
     get_config()
     log_path = Path('log')
     log_config_path = log_path.joinpath('config')
     log_config.load_log_config(log_config_path, log_config_path.joinpath('handler'))
+
+
+def init_logging():
+    log_config_path = Path(__file__).parent.parent / '.config' / 'telex2reddit.logging.json'
+    if os.path.exists(log_config_path):
+        with open(log_config_path, 'rt') as f:
+            config_dict = json.load(f)
+        logging.config.dictConfig(config_dict)
+    else:
+        logging.basicConfig(level=0)
+
+    return logging.getLogger()
