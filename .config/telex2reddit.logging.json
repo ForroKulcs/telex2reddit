@@ -1,24 +1,23 @@
 {
 	"version": 1,
-	"disable_existing_loggers": true,
 	"filters": {
 		"notset_level_filter": {
-			"()": "levelfilter.NotsetLevelFilter"
+			"()": "telex2reddit.levelfilter.NotsetLevelFilter"
 		},
 		"debug_level_filter": {
-			"()": "levelfilter.DebugLevelFilter"
+			"()": "telex2reddit.levelfilter.DebugLevelFilter"
 		},
 		"info_level_filter": {
-			"()": "levelfilter.InfoLevelFilter"
+			"()": "telex2reddit.levelfilter.InfoLevelFilter"
 		},
 		"warning_level_filter": {
-			"()": "levelfilter.WarningLevelFilter"
+			"()": "telex2reddit.levelfilter.WarningLevelFilter"
 		},
 		"error_level_filter": {
-			"()": "levelfilter.ErrorLevelFilter"
+			"()": "telex2reddit.levelfilter.ErrorLevelFilter"
 		},
 		"critical_level_filter": {
-			"()": "levelfilter.CriticalLevelFilter"
+			"()": "telex2reddit.levelfilter.CriticalLevelFilter"
 		}
 	},
 	"formatters": {
@@ -111,7 +110,7 @@
 			"backupCount": 30,
 			"class": "logging.handlers.TimedRotatingFileHandler",
 			"encoding": "utf-8",
-			"filename": "log/info/info.txt",
+			"filename": "../log/info.txt",
 			"formatter": "complex",
 			"level": "INFO",
 			"when": "midnight"
@@ -120,7 +119,7 @@
 			"backupCount": 52,
 			"class": "logging.handlers.TimedRotatingFileHandler",
 			"encoding": "utf-8",
-			"filename": "log/error/error.txt",
+			"filename": "../log/error.txt",
 			"formatter": "complex",
 			"level": "ERROR",
 			"when": "W0"
@@ -139,6 +138,14 @@
 				"file_error"
 			],
 			"level": 0
+		}
+	},
+	"rollbar": {
+		"enabled": true,
+		"handler": {
+			"access_token": "",
+			"environment": "production",
+			"level": "WARNING"
 		}
 	}
 }

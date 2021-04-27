@@ -1,5 +1,5 @@
 import json
-import jsonfile
+from . import jsonfile
 
 
 class ListAsDictJsonText(jsonfile.JsonText):

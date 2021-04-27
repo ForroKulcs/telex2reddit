@@ -1,0 +1,9 @@
+# Generated, non source stuff
+/.git
+/venv
+/.idea
+
+# Volumes
+/.config
+/.data
+/log

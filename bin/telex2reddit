@@ -1,0 +1,7 @@
+#!/usr/bin/python3
+
+import telex2reddit
+
+if __name__ == '__main__':
+    telex2reddit.init()
+    telex2reddit.main()

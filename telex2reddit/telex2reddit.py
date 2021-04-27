@@ -1,9 +1,9 @@
 import configparser
 from datetime import datetime
 import json
-from jsonfile import JsonGzip
-from listasdictjsonfile import ListAsDictJsonGzip, ListAsDictJsonText
-import log_config
+from .jsonfile import JsonGzip
+from .listasdictjsonfile import ListAsDictJsonGzip, ListAsDictJsonText
+from . import log_config
 import logging.config
 from pathlib import Path
 import praw
@@ -16,31 +16,27 @@ import urllib.error
 import urllib.request
 
 log = logging.getLogger()
-
-
-def check_config() -> bool:
-    global config
-    global config_path
-    global config_timestamp
-    try:
-        if not config_path.is_file():
-            return False
-        mtime_ns = config_path.stat().st_mtime_ns
-        if config and config_timestamp:
-            if mtime_ns == config_timestamp:
-                return True
-        config_timestamp = mtime_ns
-        config = configparser.ConfigParser(interpolation=None)
-        config.read(config_path, encoding='utf-8')
-        return True
-    except:
-        log.exception('Exception in check_config()')
-        return False
+config = None
+config_path = Path(__file__).parent.parent / '.config' / 'telex2reddit.ini'
+config_timestamp = None
 
 
 def get_config() -> configparser.ConfigParser:
     global config
-    check_config()
+    global config_timestamp
+    global config_path
+
+    if not config_path.is_file():
+        raise Exception(f'Config {config_path} is not a readable file')
+
+    mtime_ns = config_path.stat().st_mtime_ns
+    if config and config_timestamp:
+        if mtime_ns == config_timestamp:
+            return config
+
+    config_timestamp = mtime_ns
+    config = configparser.ConfigParser(interpolation=None)
+    config.read(config_path, encoding='utf-8')
     # noinspection PyTypeChecker
     return config
 
@@ -238,17 +234,16 @@ def check_categories():
     for flair_class in automod_flairs:
         if flair_class not in flair_classes:
             raise Exception(f'Automoderator flair unexpected: {flair_class}')
-    automod_path = Path('automod.txt')
-    if automod_path.read_text(encoding='utf-8') != automoderator_content_md:
-        automod_path.write_text(automoderator_content_md, encoding='utf-8')
 
 
 def main():
+    log.info(f'Started at: {datetime.now().replace(microsecond=0)}')
+
     check_categories()
 
     remaining_articles = 0
-    articles_json = ListAsDictJsonGzip('articles.json.gz', log=log)
-    telex2_json = JsonGzip('telex2.json.gz', log=log)
+    articles_json = ListAsDictJsonGzip(Path(__file__).parent.parent / '.data' / 'articles.json.gz', log=log)
+    telex2_json = JsonGzip(Path(__file__).parent.parent / '.data' / 'telex2.json.gz', log=log)
     while True:
         try:
             articles_json.read()
@@ -282,7 +277,7 @@ def main():
                     telex_api_url = telex_config['api_url'] + f'?perPage={articles_per_page}&page={page}'
                     log.debug(f'API: {telex_api_url}')
                     content = download_content(telex_api_url, useragent)
-                    Path('articles.api.json').write_text(content, encoding='utf-8')
+                    Path(Path(__file__).parent.parent / '.data' / 'articles.api.json').write_text(content, encoding='utf-8')
                     json_data = json.loads(content)
                     if isinstance(json_data, list):
                         articles.read_list(json_data)
@@ -444,16 +439,8 @@ def main():
         time.sleep(check_interval)
 
 
-if __name__ == '__main__':
-    config = None
-    config_path = Path(__file__).with_suffix('.ini')
-    config_timestamp = None
-    if not check_config():
-        raise Exception(f'Unable to read config: {config_path}')
+def init():
+    get_config()
     log_path = Path('log')
     log_config_path = log_path.joinpath('config')
     log_config.load_log_config(log_config_path, log_config_path.joinpath('handler'))
-
-    log.info(f'Started at: {datetime.now().replace(microsecond=0)}')
-    main()
-    log.info(f'Finished at: {datetime.now().replace(microsecond=0)}')
