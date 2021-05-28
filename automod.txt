@@ -39,20 +39,25 @@
     set_flair:
         template_id: f6d16df8-05bb-11eb-82de-0e6a22abf3b5
 ---
+    url: ["telex.hu/komplex/"]
+    action: approve
+    set_flair:
+        template_id: b86912f0-bf83-11eb-826b-0e85e45464d1
+---
     url: ["telex.hu/koronavirus/"]
     action: approve
     set_flair:
         template_id: aca62c78-05bb-11eb-83f3-0e7b9b5be6c1
 ---
-    url: ["telex.hu/kult/"]
-    action: approve
-    set_flair:
-        template_id: cdc457ae-05bb-11eb-9419-0ed01453be0b
----
     url: ["telex.hu/kulfold/"]
     action: approve
     set_flair:
         template_id: 903056d6-05bb-11eb-a3be-0e023d2dc1bd
+---
+    url: ["telex.hu/kult/"]
+    action: approve
+    set_flair:
+        template_id: cdc457ae-05bb-11eb-9419-0ed01453be0b
 ---
     url: ["telex.hu/napirajz/"]
     action: approve
@@ -103,4 +108,3 @@
     action: approve
     set_flair:
         template_id: 99edb60c-9a10-11eb-a1e3-0e431e3729d7
-
