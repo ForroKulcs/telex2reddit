@@ -14,6 +14,11 @@
     set_flair:
         template_id: 423b1e1a-3177-11eb-9155-0ef39df6ab17
 ---
+    url: ["telex.hu/direkt36/"]
+    action: approve
+    set_flair:
+        template_id: bc735714-ec85-11eb-8510-1269426dfefd
+---
     url: ["telex.hu/english/"]
     action: approve
     set_flair:
@@ -33,6 +38,11 @@
     action: approve
     set_flair:
         template_id: b68e5ba0-065d-11eb-ab1d-0ed39bc79b85
+---
+    url: ["telex.hu/holdblog/"]
+    action: approve
+    set_flair:
+        template_id: 4e4f84f6-0fad-11ec-8604-3eb6bb206698
 ---
     url: ["telex.hu/interju/"]
     action: approve
