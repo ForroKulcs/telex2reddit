@@ -99,6 +99,11 @@
     set_flair:
         template_id: d5c0b0ce-05bb-11eb-93c5-0e3be618bcb3
 ---
+    url: ["telex.hu/telextarcak/"]
+    action: approve
+    set_flair:
+        template_id: 03f4d6a8-1a21-11ec-9169-9ab447c22c6d
+---
     url: ["telex.hu/tudomany/"]
     action: approve
     set_flair:

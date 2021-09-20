@@ -216,7 +216,7 @@ def check_categories():
     pattern = r'---\s+url: \["telex.hu/([\w-]+)/"]\s+action:\s*approve\s+set_flair:\s+template_id:\s*([\da-f-]+)\s*'
     last_pos = 0
     automod_flairs = {}
-    automoderator_content_md = automoderator.content_md
+    automoderator_content_md = automoderator.content_md.strip()
     for match in re.compile(pattern).finditer(automoderator_content_md):
         if last_pos != match.start():
             raise Exception(f'Unexpected position of match: {match}')
@@ -306,10 +306,14 @@ def main():
                         break
                     page += 1
 
+                expected_types = telex_config.get('expected_types', '').split(',')
+                ignore_types = telex_config.get('ignore_types', '').split(',')
                 for k, v in articles_json.items():
-                    if v['type'] != 'article':
-                        if v['type'] != 'liveblog':
-                            log.warning(f'type ({v["type"]}) not article: {k}')
+                    item_type = v['type']
+                    if item_type in ignore_types:
+                        continue
+                    if item_type not in expected_types:
+                        log.warning(f'Unexpected type ({item_type}): {k}')
                     if not v['active']:
                         log.warning(f'not active: {k}')
                         continue
