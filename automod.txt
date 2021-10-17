@@ -119,6 +119,11 @@
     set_flair:
         template_id: 79db8db8-0662-11eb-85a2-0e63ecb56f57
 ---
+    url: ["telex.hu/vesezo/"]
+    action: approve
+    set_flair:
+        template_id: 239cea08-2f30-11ec-adce-62276f9db539
+---
     url: ["telex.hu/video/"]
     action: approve
     set_flair:
