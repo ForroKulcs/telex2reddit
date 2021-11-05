@@ -99,6 +99,11 @@
     set_flair:
         template_id: 7c18010c-315e-11eb-a78b-0e108847a027
 ---
+    url: ["telex.hu/tarsadalmi-celu-reklam/"]
+    action: approve
+    set_flair:
+        template_id: d5cc8536-3e39-11ec-9dc7-ae0de9e20874
+---
     url: ["telex.hu/tech/"]
     action: approve
     set_flair:
@@ -113,6 +118,11 @@
     action: approve
     set_flair:
         template_id: 0727a122-05bc-11eb-bee2-0eca59df6af1
+---
+    url: ["telex.hu/valasztas-2022/"]
+    action: approve
+    set_flair:
+        template_id: 889737de-3e39-11ec-9cef-6eb1ee3b672e
 ---
     url: ["telex.hu/velemeny/"]
     action: approve
