@@ -29,6 +29,11 @@
     set_flair:
         template_id: ee6d4506-05bb-11eb-b879-0e2048894249
 ---
+    url: ["telex.hu/fenntarthato-karacsony/"]
+    action: approve
+    set_flair:
+        template_id: 981e402a-5f28-11ec-b1b6-ba679ae51213
+---
     url: ["telex.hu/foto/"]
     action: approve
     set_flair:
